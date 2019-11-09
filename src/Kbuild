@@ -1,4 +1,5 @@
 EXTRA_FLAGS = -Wall -g
 
-obj-m = main.o
+obj-m = yarr.o
+yarr-objs = hook.o main.o
 

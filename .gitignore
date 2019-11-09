@@ -8,3 +8,12 @@ modules.order
 .*.ko.cmd
 .*.o.cmd
 .tmp_versions
+
+# Vim swap files
+.*.swp
+
+# Cscope
+cscope.out
+
+# Ctags
+tags
