@@ -1,0 +1,21 @@
+---Snake Case ---
+
+Example: func_name()
+
+Function is internal to yarr2 and can be used across the module. It should be
+found declared in a header file.
+
+--- Leading underscore with snake case ---
+
+Example: __func_name()
+
+Function is internal just to the translation unit, "the C file". It should not
+be present in any header file.
+
+--- Camel case ---
+
+Example: funcName()
+
+Function is external to yarr2. Users of yarr2 (tools developers) would be the
+ones using it. It should be present in a header file.
+

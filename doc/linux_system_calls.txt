@@ -1,0 +1,22 @@
+By the time I'm writing this document I'm working with kernel 5.0.0. All this
+information may become outdated in the future, but hopefully will still be
+useful.
+
+This is the best resource I found on the internet about this topic:
+https://blog.packagecloud.io/eng/2016/04/05/the-definitive-guide-to-linux-system-calls/
+
+It is kind of outdated though, but still useful.
+
+
+--- How system calls are actually called in x86 ---
+
+There are 3 ways of requesting the kernel for a system call:
+    - IRQ 0x80
+    - Sysenter instruction
+    - Syscall instruction
+
+Interruption 0x80 is handled by an interrupt handler configured by the kernel
+at startup. This is done by function...
+
+//TODO: To be finished.
+

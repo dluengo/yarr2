@@ -13,19 +13,20 @@ MODULE_VERSION("0.01");
 static int __init yarr2_init(void) {
     int err;
 
-    printk(KERN_INFO "Yarr, I'm a mighty pirate!\n");
-
     // Hook the system call table.
-    err = yarr_hook_sct();
+    yarr_log("Calling hook_syscall_tables()");
+    err = hook_syscall_tables();
     if (err) {
-        yarr_log("error calling hook_sct()");
+        yarr_log("error calling hook_sys_call_tables()\n");
     }
+
+    yarr_log("Returned from hookSyscallTables()");
 
     return 0;
 }
 
 static void __exit yarr2_exit(void) {
-    printk(KERN_INFO "Keelhaul!\n");
+    printk(KERN_INFO "Keelhaul!");
 }
 
 module_init(yarr2_init);

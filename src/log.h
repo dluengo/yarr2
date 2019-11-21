@@ -1,14 +1,16 @@
-#ifndef __YARR_LOG
-#define __YARR_LOG
+#ifndef __YARR_LOG__
+#define __YARR_LOG__
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 
 #ifdef DEBUG
-    #define yarr_log(msg) { printk(KERN_INFO "%s: %s", __func__, msg); }
+    #define yarr_log(fmt, ...) \
+    { \
+        printk(KERN_INFO "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+    }
 #else
-    #define yarr_log(msg) {;}
+    #define yarr_log(fmt, ...) {}
 #endif
 
 #endif
+
