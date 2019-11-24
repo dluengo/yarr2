@@ -5,10 +5,14 @@
 #include "log.h"
 #include "hook.h"
 
+#ifdef DEBUG
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ole");
 MODULE_DESCRIPTION("Yarr2 module");
 MODULE_VERSION("0.01");
+#endif
+
+// TODO: Document all the functions using Doxygen format.
 
 static int __init yarr2_init(void) {
     int err;

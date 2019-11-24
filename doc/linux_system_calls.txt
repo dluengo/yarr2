@@ -18,5 +18,5 @@ There are 3 ways of requesting the kernel for a system call:
 Interruption 0x80 is handled by an interrupt handler configured by the kernel
 at startup. This is done by function...
 
-//TODO: To be finished.
+// TODO: To be finished.
 

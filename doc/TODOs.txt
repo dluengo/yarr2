@@ -1,0 +1,8 @@
+Throughout the code I'll be documenting some things to improve/fix/develop with
+the mark "// TODO", "//TODO", "# TODO" or "#TODO", depending of the file type.
+
+A regular expression to look for those could be: "(\/\/|#) ?TODO"
+
+E.g.
+    $ egrep -R "(\/\/|#) ?TODO" <yarr2 folder>
+

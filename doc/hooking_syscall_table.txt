@@ -1,0 +1,50 @@
+--- Previous knowledge ---
+
+By the time I'm writing this (linux 5.0.0), 64-bit linux kernels maintain 2
+system call tables. One is called sys_call_table and has the system calls for
+64-bit code. The other one is ia32_sys_call_table and has the system calls for
+32-bit code. Note that the last one might not be present as you can build a
+kernel without 32-bit support (why would you do that?). I think this is
+configured at building time by enabling/disabling CONFIG_IA32_EMULATION in the
+.config file that drives how you build the kernel.
+
+There are 3 ways the kernel allows users to request system calls:
+    * For 32-bit code:
+        * Legacy method, using the IRQ 0x80 by executing instruction int 0x80
+        * Using sysenter instruction.
+
+    * For 64-bit code:
+        * Using syscall instruction.
+
+
+--- How do we do it for 64-bit ---
+
+To hook the sys_call_table we need to know couple of things. There's something
+called MSRs (Model-Specific Registers) which are some registers (or memory
+possitions, I don't know, we don't care). There's one of them called LSTAR.
+That one contains the address where the execution flow will land when the
+processor executes a syscall instruction. Quite a few things happens there,
+privilege change to ring 0 among others.
+
+By the time I'm writting this (linux 5.0.0), the execution flows lands in
+function entry_SYSCALL_64(), implemented in arch/x86/entry/entry_64.S. After
+some checks function do_syscall_64() is called, implemented in
+arch/x86/entry/common.c. This function uses sys_call_table.
+
+This function has the address of sys_call_table hardcoded in a specific mov
+instruction. What we do is looking for that mov and extract the address of
+sys_call_table from there. Then we patch that instruction to point to another
+table that we build and keeps the addresses to our fake system calls.
+
+I decided to patch the mov instruction because I think that would be the
+hardest to uncover for a forensic.
+
+// TODO: Also I'm planning to develop a feature where I keep track of every
+// patch (hotfix actually) I do in the kernel so when someone tries to read
+// those addresses, I give them back the original values instead the ones that
+// are in place right now (the ones I wrote at some point).
+ 
+
+--- How do we do it for 32-bit ---
+
+// TODO: Keep writing.

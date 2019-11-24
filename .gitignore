@@ -19,3 +19,6 @@ cscope.out
 # Ctags
 tags
 
+# Linux kernel uncompressed
+vmlinux
+

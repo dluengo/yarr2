@@ -1,6 +1,8 @@
 #ifndef __YARR_HOOK
 #define __YARR_HOOK
 
+// TODO: Document all the functions using Doxygen format.
+
 /**
  * Hooks the system call tables.
  *
