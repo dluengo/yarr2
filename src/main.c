@@ -24,13 +24,21 @@ static int __init yarr2_init(void) {
         yarr_log("error calling hook_sys_call_tables()\n");
     }
 
-    yarr_log("Returned from hookSyscallTables()");
+    yarr_log("Returned from hook_syscall_tables()");
 
     return 0;
 }
 
 static void __exit yarr2_exit(void) {
-    printk(KERN_INFO "Keelhaul!");
+    int err;
+
+    yarr_log("Calling unhook_syscall_tables()");
+    err = unhook_syscall_tables();
+    if (err) {
+        yarr_log("error unhooking the syscall tables");
+    }
+
+    yarr_log("Returned from unhook_syscall_tables()");
 }
 
 module_init(yarr2_init);

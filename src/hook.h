@@ -12,4 +12,6 @@
  */
 int hook_syscall_tables(void);
 
+int unhook_syscall_tables(void);
+
 #endif
