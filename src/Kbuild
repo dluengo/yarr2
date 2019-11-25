@@ -1,5 +1,6 @@
-ccflags-y = -DDEBUG -ggdb -O0
+obj-m := yarr.o
+yarr-objs := utils.o hook.o main.o
 
-obj-m = yarr.o
-yarr-objs = utils.o hook.o main.o
+ccflags-y := -DDEBUG
+ccflags-y += -I$(src)/../include
 

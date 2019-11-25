@@ -1,4 +1,4 @@
-SRC_DIR = `pwd`/src
+SRC_DIR := `pwd`/src
 
 all:
 	make -C $(SRC_DIR)

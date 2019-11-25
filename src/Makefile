@@ -6,8 +6,8 @@
 # invest my time on keep developing yarr2. If you know how to do it... please
 # contact me :-*
 
-KRNL_LIBS = /lib/modules/`uname -r`
-BUILD_DIR = $(KRNL_LIBS)/build
+KRNL_LIBS := /lib/modules/`uname -r`
+BUILD_DIR := $(KRNL_LIBS)/build
 
 kbuild:
 	make -C $(BUILD_DIR) M=`pwd` modules
