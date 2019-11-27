@@ -39,3 +39,14 @@ void* lookup_byte(unsigned char *src, unsigned char byte, unsigned int skips) {
     return &(src[i]);
 }
 
+int32_t get_low_4_bytes(unsigned long src) {
+    int32_t res;
+
+    res = (src & 0x00000000ff000000) |
+          (src & 0x0000000000ff0000) |
+          (src & 0x000000000000ff00) |
+          (src & 0x00000000000000ff);
+
+    return res;
+}
+

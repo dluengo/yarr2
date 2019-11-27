@@ -4,6 +4,7 @@
 
 #include "log.h"
 #include "hook.h"
+#include "patch.h"
 
 #ifdef DEBUG
 MODULE_LICENSE("GPL");
@@ -32,13 +33,17 @@ static int __init yarr2_init(void) {
 static void __exit yarr2_exit(void) {
     int err;
 
-    yarr_log("Calling unhook_syscall_tables()");
-    err = unhook_syscall_tables();
+    yarr_log("Starting unload of yarr");
+    // TODO: I don't fully like this approach (coupling between subsystems).
+    // main.c doesn't call patch(), so it shouldn't be calling unpatch_all().
+    // Each subsystem unpatching what they did is the correct way. However
+    // calling a single time unpatch_all() reduces code complexity.
+    err = unpatch_all();
     if (err) {
         yarr_log("error unhooking the syscall tables");
     }
 
-    yarr_log("Returned from unhook_syscall_tables()");
+    yarr_log("Finished unloading stuff");
 }
 
 module_init(yarr2_init);

@@ -14,4 +14,6 @@
  */
 void* lookup_byte(unsigned char *src, unsigned char byte, unsigned int skips);
 
+int32_t get_low_4_bytes(unsigned long src);
+
 #endif
