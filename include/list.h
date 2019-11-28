@@ -38,10 +38,10 @@ int ListItem_setData(ListItem_t *this, void *data);
 void * ListItem_getData(ListItem_t *this);
 
 /**
- * Prints the list item.
+ * Prints the list item. Mostly for debugging purposes.
  *
- * @this: The ListItem_t to print.
- * @print_data: Pointer to a function able to print the data stored by this
+ * @this: The item to print.
+ * @print_data: Pointer to a function able to print the data stored by the
  * item.
  */
 void ListItem_print(ListItem_t *this, void (*print_data)(void *));
@@ -53,6 +53,14 @@ typedef struct list {
     unsigned int length;
     void (*print_data)(void *data);
 } List_t;
+
+/*
+ * About List_t use:
+ *
+ * - The list is not sorted.
+ * - Indexes start at 0.
+ * - Expect bugs, use at your own risk xD.
+ */
 
 /**
  * Creates an empty initialized list.
@@ -121,12 +129,25 @@ ListItem_t * List_removeByIndex(List_t *this, unsigned int index);
  */
 ListItem_t * List_getItem(List_t *this, unsigned int index);
 
-// TODO: Document.
+/**
+ * Get the data associated to an item.
+ *
+ * @this: The list from where to get the data.
+ * @index: The index of the item that keeps the data.
+ * @return: A pointer to the data or NULL.
+ */
 void * List_getData(List_t *this, unsigned int index);
 
+/**
+ * Prints a representation of the list. This is mostly for debugging purposes.
+ *
+ * @this: The list to print.
+ */
 void List_print(List_t *this);
 
-//TODO: Add List method that destroy the list destroying elements.
+//TODO: Add List_t method that destroy the list destroying elements. Likely
+// when creating the list we should provide a method that destroys the data
+// contained in the ListItem_t. Same as we do with print_data.
 
 #endif
 
