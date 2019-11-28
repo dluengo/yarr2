@@ -3,8 +3,6 @@
 
 #include <linux/types.h>
 
-// TODO: Document.
-
 /**
  * Patches the kernel memory at dst with size bytes from src.
  *

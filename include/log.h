@@ -1,5 +1,5 @@
-#ifndef __YARR_LOG__
-#define __YARR_LOG__
+#ifndef __YARR_LOG
+#define __YARR_LOG
 
 #include <linux/kernel.h>
 

@@ -1,8 +1,6 @@
 #ifndef __YARR_HOOK
 #define __YARR_HOOK
 
-// TODO: Document all the functions using Doxygen format.
-
 /**
  * Hooks the system call tables.
  *
@@ -11,7 +9,5 @@
  * 32-bit syscalls. For further documentation read doc/linux_system_calls.txt
  */
 int hook_syscall_tables(void);
-
-int unhook_syscall_tables(void);
 
 #endif

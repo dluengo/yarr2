@@ -3,8 +3,6 @@
 #include "utils.h"
 #include "log.h"
 
-// TODO: Document all the functions using Doxygen format.
-
 void* lookup_byte(unsigned char *src, unsigned char byte, unsigned int skips) {
     const int __MAX_ITERS = 500;
     unsigned int i;
