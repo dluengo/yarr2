@@ -52,7 +52,10 @@ int __hook_syscall_table_64(void) {
     // Get the 4 bytes next to the call opcode (displacement).
     memcpy(&displacement, (void *)(addr_e8 + 1), 4);
 
-    // Calculate the address of do_syscall_64.
+    // Calculate the address of do_syscall_64. The + 5 is because the
+    // displacement is relative to the next instruction. The call instruction
+    // is 5-byte long, e8 <4-byte displacement>, so the next instruction is
+    // in address addr_e8 + 5.
     do_syscall_64 = (void *)(addr_e8 + 5 + displacement);
 
     // its instructions, specifically mov <num>(,%rdi,8),%rax. Here <num> is

@@ -2,8 +2,9 @@ By the time I'm writing this document I'm working with kernel 5.0.0. All this
 information may become outdated in the future, but hopefully will still be
 useful.
 
-This is the best resource I found on the internet about this topic:
+These are the best resource I found on the internet about this topic:
 https://blog.packagecloud.io/eng/2016/04/05/the-definitive-guide-to-linux-system-calls/
+https://wiki.osdev.org/SYSENTER
 
 It is kind of outdated though, but still useful.
 
@@ -15,8 +16,68 @@ There are 3 ways of requesting the kernel for a system call:
     - Sysenter instruction
     - Syscall instruction
 
-Interruption 0x80 is handled by an interrupt handler configured by the kernel
-at startup. This is done by function...
+*** IRQ 0x80 ***
 
-// TODO: To be finished.
+This is the legacy method to request a system call. Interruption 0x80 is
+handled by an interrupt handler configured by the kernel at startup. This is
+done in arch/x86/kernel/traps.c in traps_init() --> idt_setup_traps() -->
+idt_setup_from_table(). There's the def_idts table and there we can see:
+
+102 #if defined(CONFIG_IA32_EMULATION)      
+103         SYSG(IA32_SYSCALL_VECTOR,       entry_INT80_compat),
+104 #elif defined(CONFIG_X86_32)
+105         SYSG(IA32_SYSCALL_VECTOR,       entry_INT80_32),
+106 #endif
+
+entry_INT80_compat() or entry_INT80_32(), depending on whether we are in a
+64-bit system that can run 32-bit programs or in a 32-bit system (all this is
+my guess to be honest).
+
+This is the execution flow:
+
+entry_INT80_compat() --> do_int80_syscall_32() --> do_syscall_32_irqs_on()
+
+There we can see this code:
+
+337                 regs->ax = ia32_sys_call_table[nr](
+338                         (unsigned int)regs->bx, (unsigned int)regs->cx,
+339                         (unsigned int)regs->dx, (unsigned int)regs->si,
+340                         (unsigned int)regs->di, (unsigned int)regs->bp);
+
+The table that handles the 32-bit system calls is ia32_sys_call_table. The same
+table handles them in a pure 32-bit system, you can check it out by following
+entry_INT80_32().
+
+*** Sysenter ***
+
+Sysenter is the proper way (fast system calls) to request system calls for
+32-bit programs. Simplifying A LOT, there is a Model-Specific Register called
+IA32_SYSENTER_EIP that contains the address where the program lands after
+executing the instruction sysenter.
+
+In Linux this is configured in arch/x86/kernel/cpu/common.c:
+
+1497         wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
+
+If we follow the code: entry_SYSENTER_32() --> do_fast_syscall_32() -->
+do_syscall_32_irqs_on(), and that's the same code as with IRQ 0x80.
+
+*** Syscall ***
+
+The syscall instruction is very similar as to the sysenter one, but it is used
+for 64-bit system calls. There's a Model-Specific Register called LSTAR that
+contains the address where we land after executing syscall. It is also
+configured in arch/x86/kernel/cpu/common.c:
+
+1598         wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+
+As we can see entry_SYSCALL_64() is where we land, if we fallow the code
+entry_SYSCALL_64() --> do_syscall_64(). There we can see this line:
+
+293                 regs->ax = sys_call_table[nr](regs);
+
+The table used for 64-bit syscalls is sys_call_table, different from the 32-bit
+one so 64-bit kernels could have 1 or 2 system call tables depending on how it
+was configured at building time, whether CONFIG_IA32_EMULATION was enabled or
+not. Most 64-bit kernels do though.
 
