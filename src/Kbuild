@@ -1,5 +1,5 @@
 obj-m := yarr.o
-yarr-objs := list.o utils.o patch.o hook.o main.o
+yarr-objs := list.o utils.o patch.o yarrcall.o hook.o main.o
 
 ccflags-y := -DDEBUG
 ccflags-y += -I$(src)/../include
