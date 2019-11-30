@@ -22,3 +22,7 @@ tags
 # Linux kernel uncompressed
 vmlinux
 
+# Examples binaries
+examples/yarrcall_access
+src/yarrcall_access
+
