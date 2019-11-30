@@ -1,5 +1,6 @@
-Throughout the code I'll be documenting some things to improve/fix/develop with
-the mark "// TODO", "//TODO", "# TODO" or "#TODO", depending of the file type.
+Throughout the code I'll be marking some things to improve/fix/develop/document
+with the mark "// TODO", "//TODO", "# TODO" or "#TODO", depending of the file
+type.
 
 A regular expression to look for those could be: "(\/\/|#) ?TODO"
 
