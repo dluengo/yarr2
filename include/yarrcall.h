@@ -5,9 +5,11 @@
 
 /**
  * This is the vector used for accessing yarr2 services. It correspond to the
- * tuxcall syscall. In my kernels it is not used either in the 64-bit syscall
- * table or 32-bit one. If your kernel does support tuxcall likely you would
- * need to look for another number and build yarr2.
+ * tuxcall syscall. In my kernels it is not used in the 64-bit table, it is in
+ * the 32-bit one I think and there it doesn't belong to tuxcall. If your
+ * kernel does support tuxcall likely you would need to look for another number
+ * and build yarr2. In reality I think tuxcall is never implemented, that's why
+ * I chose it.
  */
 #define YARR_VECTOR (184)
 
