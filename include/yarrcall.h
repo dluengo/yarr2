@@ -3,20 +3,13 @@
 
 #include <linux/syscalls.h>
 
-// TODO: The vector used was available in my kernels, however I wouldn't be
-// surprised if in other kernels that vector is used. This could happen if
-// other kernels are built with other CONFIG_<WHATEVER> macros that enable
-// some other system calls that I don't have here.
-
 /**
- * This is the vector used for accessing yarr2 services. It was chosen after
- * looking for some position in the sys_call_table and ia32_sys_call_table that
- * wasn't in use (i.e. sys_ni_syscall was there).
+ * This is the vector used for accessing yarr2 services. It correspond to the
+ * tuxcall syscall. In my kernels it is not used either in the 64-bit syscall
+ * table or 32-bit one. If your kernel does support tuxcall likely you would
+ * need to look for another number and build yarr2.
  */
-#define YARR_VECTOR (134)
-
-// TODO: I think the second paramenter should be a union with the different
-// structures with params for each service yarr2 would be able to offer.
+#define YARR_VECTOR (184)
 
 /**
  * Entry point of the yarr system call, a wrapper to properly read the
@@ -28,6 +21,9 @@
  * @return: Zero on success, non-zero elsewhere.
  */
 asmlinkage long entry_yarrcall(struct pt_regs *regs);
+
+// TODO: I think the second paramenter should be a union with the different
+// structures with params for each service yarr2 would be able to offer.
 
 /**
  * As with the system calls, yarr has its own entry point to ask for services.

@@ -1,0 +1,11 @@
+Yarr2 is design in a way users can write programs that ask yarr2 for services
+like hiding processes, files, etc. The way we do this is by creating some sort
+of system call, that I have called yarrcall.
+
+Yarrcall is installed in the system call table just as another system call, and
+therefore it has its own vector (check for YARR_VECTOR in yarrcall.h). I tried
+to use a weird syscall vector that is typically not implemented, but depending
+on how your kernel was configured that vector could be already in use in your
+system. If that happens you need to look for another vector that is not in use,
+change YARR_VECTOR in yarrcall.h and build yarr2.
+

