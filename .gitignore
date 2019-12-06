@@ -24,5 +24,5 @@ vmlinux
 
 # Examples binaries
 examples/yarrcall_access
-src/yarrcall_access
+examples/hide_self
 

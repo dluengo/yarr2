@@ -38,6 +38,32 @@ void * ListItem_getData(ListItem_t *this) {
     return this->data;
 }
 
+int ListItem_dataIsEqual(
+        ListItem_t *this,
+        void *data,
+        int (*cmp)(void *e1, void *e2)) {
+    if (this == NULL) {
+        yarr_log("this is NULL");
+        return 0;
+    }
+
+    if (data == NULL) {
+        yarr_log("data is NULL");
+        return 0;
+    }
+
+    if (cmp == NULL) {
+        yarr_log("cmp func is NULL");
+        return 0;
+    }
+
+    if (cmp(this->data, data) == 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 void ListItem_print(ListItem_t *this, void (*print_data)(void *data)) {
     if (this == NULL) {
         yarr_log("this is NULL");
@@ -60,7 +86,9 @@ void ListItem_print(ListItem_t *this, void (*print_data)(void *data)) {
 
 //---------------------------------------------------------
 
-List_t * List_create(void (*print_data)(void *)) {
+List_t * List_create(
+        void (*print_data)(void *),
+        int (*cmp_data)(void *, void *)) {
     List_t *list;
     
     list = kmalloc(sizeof(List_t), GFP_KERNEL);
@@ -68,6 +96,7 @@ List_t * List_create(void (*print_data)(void *)) {
         list->head = list->tail = NULL;
         list->length = 0;
         list->print_data = print_data;
+        list->cmp_data = cmp_data;
     }
 
     return list;
@@ -262,6 +291,63 @@ void * List_getData(List_t *this, unsigned int index) {
     // the tail.
     for (i = 0, iter = this->head; i < index; iter = iter->next, i++);
     return iter->data;
+}
+
+int List_itemIsContained(List_t *this, void *data) {
+    ListItem_t *iter;
+
+    if (this == NULL) {
+        yarr_log("this is NULL");
+        return 0;
+    }
+
+    if (data == NULL) {
+        yarr_log("data is NULL");
+        return 0;
+    }
+
+    // Check if list has items.
+    if (this->length == 0) {
+        return 0;
+    }
+
+    // Iterate over the items in the list check if the data passed is equal to
+    // the data contained in the current element.
+    for (iter = this->head; iter != NULL; iter = iter->next) {
+        if (ListItem_dataIsEqual(iter, data, this->cmp_data)) {
+            return 1;
+        }
+    }
+
+    // Haven't found the data in the list.
+    return 0;
+}
+
+ListItem_t * List_getItemByData(List_t *this, void *data) {
+    ListItem_t *iter;
+
+    if (this == NULL) {
+        yarr_log("this is NULL");
+        return NULL;
+    }
+
+    if (data == NULL) {
+        yarr_log("data is NULL");
+        return NULL;
+    }
+
+    if (this->cmp_data == NULL) {
+        yarr_log("this->cmp_data is NULL");
+        return NULL;
+    }
+
+    for (iter = this->head; iter != NULL; iter = iter->next) {
+        if (this->cmp_data(iter->data, data) == 0) {
+            return iter;
+        }
+    }
+
+    return NULL;
 }
 
 void List_print(List_t *this) {

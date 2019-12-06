@@ -67,7 +67,7 @@ int __update_bookkeeping(unsigned char *dst, unsigned char *src, size_t size) {
 
     // First time using the patch subsystem. Create the patch list.
     if (__patch_list == NULL) {
-        __patch_list = List_create((void *)__PatchEntry_print);
+        __patch_list = List_create((void *)__PatchEntry_print, NULL);
         if (__patch_list == NULL) {
             yarr_log("Error while creating the list of patches");
             kfree(patch_entry->orig_content);
