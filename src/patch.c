@@ -5,9 +5,6 @@
 #include "log.h"
 #include "list.h"
 
-// TODO: Rewrite a bit, create init_patch() and stop_patch() singletons that do
-// all the init/destroy work.
-
 // Every time we patch something in the kernel we keep track of the address we
 // patch, the amount of bytes we patch an the original content. This way we
 // can undo all the patches before unloading.
@@ -41,9 +38,9 @@ static void __PatchEntry_print(__PatchEntry_t *this) {
 static void __PatchEntry_destroy(__PatchEntry_t *this) {
     if (this != NULL) {
         kfree(this->orig_content);
-        kfree(this);
     }
 
+    kfree(this);
     return;
 }
 
@@ -124,6 +121,39 @@ static void __write_with_perms(void *dst, void *src, size_t size) {
     write_cr0(cr0 | __WP_BIT);
 }
 
+int init_patch(void) {
+    // Subsystem was initialized before, end gracefully but raise a message.
+    if (__patch_list != NULL) {
+        yarr_log("Trying to initialize patch subsystem more than once");
+        return 0;
+    }
+
+    __patch_list = List_create(
+            (void *)__PatchEntry_print,
+            NULL,
+            (void *)__PatchEntry_destroy);
+    if (__patch_list == NULL) {
+        yarr_log("Error creating __patch_list");
+        return -1;
+    }
+
+    return 0;
+}
+
+int stop_patch(void) {
+    if (__patch_list == NULL) {
+        return 0;
+    }
+
+    // Before stopping the subsystem undo all the patches.
+    unpatch_all();
+    yarr_log("Patches undone");
+
+    List_destroy(__patch_list);
+    __patch_list = NULL;
+    return 0;
+}
+
 int patch(unsigned char *dst, unsigned char *src, size_t size) {
     int err;
 
@@ -166,7 +196,6 @@ int unpatch_all(void) {
 
     }
 
-    List_destroy(__patch_list);
     return 0;
 }
 

