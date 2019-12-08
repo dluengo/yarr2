@@ -1,7 +1,7 @@
-obj-m := yarr.o
-yarr-objs := list.o utils.o patch.o hidepid.o hook_syscalls.o yarrcall.o \
-             hook.o main.o
+obj-m := yarr2.o
+yarr2-objs := list.o utils.o patch.o hidepid.o hook_syscalls.o yarrcall.o \
+              hook.o main.o
 
-ccflags-y := -DDEBUG
+ccflags-y := -DDEBUG -ggdb
 ccflags-y += -I$(src)/../include
 

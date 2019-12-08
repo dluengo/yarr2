@@ -11,7 +11,7 @@ Example: __func_name()
 
 Function is internal just to the translation unit (i.e. the C file, although
 this is not fully correct). It should not be present in any header file. It
-should use exactly 2 underscores.
+should use exactly 2 underscores. It also should be static.
 
 --- Camel-case ---
 

@@ -14,7 +14,16 @@ ListItem_t * ListItem_create(void) {
     return new_item;
 }
 
-void ListItem_destroy(ListItem_t *this) {
+void ListItem_destroy(ListItem_t *this, void (*free_data)(void *data) ) {
+    if (this != NULL) {
+        return;
+    }
+
+    // There's a function to free resources taken by the data we keep. Call it.
+    if (free_data != NULL) {
+        free_data(this->data);
+    }
+
     kfree(this);
     return;
 }
@@ -88,7 +97,8 @@ void ListItem_print(ListItem_t *this, void (*print_data)(void *data)) {
 
 List_t * List_create(
         void (*print_data)(void *),
-        int (*cmp_data)(void *, void *)) {
+        int (*cmp_data)(void *, void *),
+        void (*free_data)(void *)) {
     List_t *list;
     
     list = kmalloc(sizeof(List_t), GFP_KERNEL);
@@ -97,12 +107,29 @@ List_t * List_create(
         list->length = 0;
         list->print_data = print_data;
         list->cmp_data = cmp_data;
+        list->free_data = free_data;
     }
 
     return list;
 }
 
 void List_destroy(List_t *this) {
+    ListItem_t *iter, *item_to_destroy;
+
+    if (this == NULL) {
+        return;
+    }
+
+    iter = this->head;
+    while (iter != NULL) {
+        // Do this before destroying the item.
+        item_to_destroy = iter;
+        iter = iter->next;
+
+        // Iterator is safe, destroy the item.
+        ListItem_destroy(item_to_destroy, this->free_data);
+    }
+
     kfree(this);
     return;
 }
@@ -166,7 +193,7 @@ int List_insertData(List_t *this, void *data) {
     err = ListItem_setData(item, data);
     if (err) {
         yarr_log("Couldn't set data in the item");
-        ListItem_destroy(item);
+        ListItem_destroy(item, NULL);
         return 1;
     }
 

@@ -15,7 +15,7 @@ int main() {
     args.hidepid_args.pid = my_pid;
     err = syscall(YARR_VECTOR, HIDE_PID, &args);
     if (err) {
-        printf("Errors hidding\n");
+        printf("Errors hiding\n");
         return -1;
     }
 
@@ -23,7 +23,7 @@ int main() {
 
     err = syscall(YARR_VECTOR, STOP_HIDE_PID, &args);
     if (err) {
-        printf("Errors stop hidding\n");
+        printf("Errors stop hiding\n");
     }
 
     printf("Try again with kill -TERM %d\n", my_pid);

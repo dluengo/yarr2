@@ -6,12 +6,20 @@
 # invest my time on keep developing yarr2. If you know how to do it... please
 # contact me :-*
 
-KRNL_LIBS := /lib/modules/`uname -r`
-BUILD_DIR := $(KRNL_LIBS)/build
+# Use it when you want to compile against a specific kernel installed in your
+# system but not the running one.
+ifneq ($(KVERSION),)
+    KDIR := /lib/modules/$(KVERSION)/build
+else
+    KDIR := /lib/modules/`uname -r`/build
+endif
 
 kbuild:
-	make -C $(BUILD_DIR) M=`pwd` modules
+	make -C $(KDIR) M=`pwd` modules
 
 clean:
-	make -C $(BUILD_DIR) M=`pwd` clean
+	make -C $(KDIR) M=`pwd` clean
+
+#$(ODIR):
+#	mkdir $(ODIR)
 

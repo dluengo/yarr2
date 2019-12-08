@@ -5,6 +5,9 @@
 #include "log.h"
 #include "list.h"
 
+// TODO: Rewrite a bit, create init_patch() and stop_patch() singletons that do
+// all the init/destroy work.
+
 // Every time we patch something in the kernel we keep track of the address we
 // patch, the amount of bytes we patch an the original content. This way we
 // can undo all the patches before unloading.
@@ -18,7 +21,7 @@ typedef struct {
 // kernel.
 List_t *__patch_list = NULL;
 
-void __PatchEntry_print(__PatchEntry_t *this) {
+static void __PatchEntry_print(__PatchEntry_t *this) {
     int i;
 
     if (this == NULL) {
@@ -35,7 +38,19 @@ void __PatchEntry_print(__PatchEntry_t *this) {
     yarr_raw_log(" ]\n");
 }
 
-int __update_bookkeeping(unsigned char *dst, unsigned char *src, size_t size) {
+static void __PatchEntry_destroy(__PatchEntry_t *this) {
+    if (this != NULL) {
+        kfree(this->orig_content);
+        kfree(this);
+    }
+
+    return;
+}
+
+static int __update_bookkeeping(
+        unsigned char *dst,
+        unsigned char *src,
+        size_t size) {
     __PatchEntry_t *patch_entry;
     int err;
 
@@ -67,7 +82,10 @@ int __update_bookkeeping(unsigned char *dst, unsigned char *src, size_t size) {
 
     // First time using the patch subsystem. Create the patch list.
     if (__patch_list == NULL) {
-        __patch_list = List_create((void *)__PatchEntry_print, NULL);
+        __patch_list = List_create(
+                (void *)__PatchEntry_print,
+                NULL,
+                (void *)__PatchEntry_destroy);
         if (__patch_list == NULL) {
             yarr_log("Error while creating the list of patches");
             kfree(patch_entry->orig_content);
@@ -91,7 +109,7 @@ int __update_bookkeeping(unsigned char *dst, unsigned char *src, size_t size) {
     return 0;
 }
 
-void __write_with_perms(void *dst, void *src, size_t size) {
+static void __write_with_perms(void *dst, void *src, size_t size) {
     const unsigned long __WP_BIT = 0x0000000000010000;
     unsigned long cr0;
 
@@ -146,12 +164,9 @@ int unpatch_all(void) {
                 patch_entry->orig_content,
                 patch_entry->size);
 
-        // Free the memory of the orig_content pointer.
-        kfree(patch_entry->orig_content);
     }
 
     List_destroy(__patch_list);
-
     return 0;
 }
 

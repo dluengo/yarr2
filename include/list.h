@@ -17,8 +17,10 @@ ListItem_t * ListItem_create(void);
  * Destroy a list item.
  *
  * @this: The item to be destroyed.
+ * @free_data: A pointer to a function that frees the resources taken by the
+ * data we keep in this element.
  */
-void ListItem_destroy(ListItem_t *this);
+void ListItem_destroy(ListItem_t *this, void (*free_data)(void *data));
 
 /**
  * Set the data contained in this item.
@@ -69,6 +71,7 @@ typedef struct list {
     unsigned int length;
     void (*print_data)(void *data);
     int (*cmp_data)(void *e1, void *e2);
+    void (*free_data)(void *data);
 } List_t;
 
 /*
@@ -86,11 +89,14 @@ typedef struct list {
  * @cmp_data: Pointer to a function that compares two datas. Shall return zero
  * if both elements are equal, less than zero if e1 < e2 or greater than zero
  * if e1 > e2.
+ * @free_data: Pointer to a function that frees the data kept in the elements
+ * of the list.
  * @return A pointer to the newly created list or NULL;
  */
 List_t * List_create(
         void (*print_data)(void *data),
-        int (*cmp_data)(void *e1, void *e2));
+        int (*cmp_data)(void *e1, void *e2),
+        void (*free_data)(void *data));
 
 /**
  * Destroys a list. The list should've been created with List_create().
@@ -189,10 +195,6 @@ ListItem_t * List_getItemByData(List_t *this, void *data);
  * @this: The list to print.
  */
 void List_print(List_t *this);
-
-//TODO: Add List_t method that destroy the list destroying elements. Likely
-// when creating the list we should provide a method that destroys the data
-// contained in the ListItem_t. Same as we do with print_data.
 
 #endif
 

