@@ -1,10 +1,11 @@
 SRC_DIR := `pwd`/src
-EXAMPLES_DIR := `pwd`/examples
+EXAMPLE_DIR := `pwd`/example
+TEST_DIR := `pwd`/test
 
 # TODO: Consider building examples here.
-all: yarr2
+all: yarr2 test
 
-clean: yarr2_clean
+clean: yarr2_clean test_clean
 
 yarr2:
 	make -C $(SRC_DIR)
@@ -12,10 +13,16 @@ yarr2:
 yarr2_clean:
 	make -C $(SRC_DIR) clean
 
-# TODO: Not working, why?
-examples:
-	make -C $(EXAMPLES_DIR)
+test:
+	make -C $(TEST_DIR)
 
-examples_clean:
-	make -C $(EXAMPLES_DIR) clean
+test_clean:
+	make -C $(TEST_DIR) clean
+
+# TODO: Not working, why?
+example:
+	make -C $(EXAMPLE_DIR)
+
+example_clean:
+	make -C $(EXAMPLE_DIR) clean
 

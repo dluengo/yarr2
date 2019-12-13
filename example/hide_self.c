@@ -7,13 +7,15 @@
 
 int main() {
     pid_t my_pid;
-    YarrCallArgs_t args;
+    YarrcallArgs_t args;
     long err;
 
     my_pid = getpid();
-    printf("My pid is %d\nTry with kill -TERM %d\n", my_pid, my_pid);
+    printf("My pid is %d\n", my_pid);
+    printf("Try with kill -TERM %d\n", my_pid);
+
     args.hidepid_args.pid = my_pid;
-    err = syscall(YARR_VECTOR, HIDE_PID, &args);
+    err = yarrcall(HIDE_PID, &args);
     if (err) {
         printf("Errors hiding\n");
         return -1;
@@ -21,7 +23,7 @@ int main() {
 
     sleep(15);
 
-    err = syscall(YARR_VECTOR, STOP_HIDE_PID, &args);
+    err = yarrcall(UNHIDE_PID, &args);
     if (err) {
         printf("Errors stop hiding\n");
     }

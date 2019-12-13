@@ -23,6 +23,9 @@ tags
 vmlinux
 
 # Examples binaries
-examples/yarrcall_access
 examples/hide_self
+
+# objs and bin folders
+bin
+objs
 
