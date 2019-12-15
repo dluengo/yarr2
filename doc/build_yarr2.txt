@@ -1,0 +1,23 @@
+Two scenarios:
+    - Building for the same machine.
+    - Building for another machine.
+
+Because yarr2 is a LKM it needs the kernel's headers and configuration file.
+Typically the formers are at /usr/src/linux-headers-<version> and the later at
+/lib/modules/<version>/build/.config or /boot/config-<version>.
+
+Nevermind, when building yarr2 for the current machine (native compile) running
+make on the top-level directory should be enough.
+
+When building for another machine (cross-compile) the header files of the
+version of the kernel running in that machine and its config files need to be
+in the local machine. Given that prerequisite, you can build yarr2 by running
+make KVERSION=<version> on the top-level directory.
+
+Examples:
+    - Native build:
+        - $ make
+
+    - Cross-compile:
+        - $ make KVERSION=5.0.0-36-generic
+

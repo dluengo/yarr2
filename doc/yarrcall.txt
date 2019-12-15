@@ -3,9 +3,58 @@ like hiding processes, files, etc. The way we do this is by creating some sort
 of system call, that I have called yarrcall.
 
 Yarrcall is installed in the system call table just as another system call, and
-therefore it has its own vector (check for YARR_VECTOR in yarrcall.h). I tried
+therefore it has its own vector (check for YARR_VECTOR in yarrlib.h). I tried
 to use a weird syscall vector that is typically not implemented, but depending
 on how your kernel was configured that vector could be already in use in your
 system. If that happens you need to look for another vector that is not in use,
 change YARR_VECTOR in yarrcall.h and build yarr2.
+
+For the sake of clarification, when I wrote this I'm using vector 184 for
+yarrcall. The reason is that the 64-bit version of the syscall is called
+"tuxcall", which sounds a bit weird to me and possibly a testing thing, so I
+took it. Sadly in the 32-bit syscall table vector 184 belongs to capget().
+
+--- Design overview ---
+
+Yarr2 is designed with the goal of being a toolkit for concealment and
+monitorization in a system. Yarr2 by itself don't offer tools, however these
+might be added to the project and released along with yarr2 itself. Instead
+what yarr2 offers are services: task hidding, file hidding, connection hidding,
+capture data of the system, monitoring forensic behaviour, etc (that's the
+idea, let's see how far I reach). These services are requested to the yarr2
+module that should be resident in the kernel. That means, yarr2 is not a tool
+for gaining permissions in a system, it is not related to the exploitation
+phase of an attack, but instead to the pwn consolidation phase.
+
+The way one access the services from a userland program is the same as any
+system call.
+
+By the time I'm writting this, yarr2 just supports the 64-bit version of
+yarrcall, which means we can access yarr's services only by executing the
+syscall assembler instruction.
+
+Glibc offers a primitive called syscall(2), that's how we access yarrcall.
+However, in order to make things easier, yarr2 offers a small library that
+exports a function called yarrcall() (look into include/yarrlib.h). This
+library is formed by a header file yarrlib.h and a binary libyarrlib.so.
+A programmer can use it to access yarrcall.
+
+In the header file we find defined 3 main things:
+    - The yarrcall() function.
+    - The name of the services yarr2 offers.
+    - The type of arguments for a service.
+
++----------------------------+      +-------------------------------------+
+|                            |      |                                     |
+|     User-land program      |      |      Kernel-land yarr2 module       |
+|                            |      |                                     |
+|----------------------------+      +-------------------------------------+
+|                            |      |                                     |
+| #include "yarrlib.h"       |      |                                     |
+|                            |      |                                     |
+| ...                        |      |                                     |
+|                            |      |                                     |
+| yarrcall(HIDE_PID, args);-----------> do_yarrcall(HIDE_PID, args) {...} |
+|                            |      |                                     |
++----------------------------+      +-------------------------------------+
 
