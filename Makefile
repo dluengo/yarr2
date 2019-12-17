@@ -3,10 +3,12 @@ EXAMPLE_DIR := `pwd`/example
 TEST_DIR := `pwd`/test
 LIB_DIR := `pwd`/lib
 
-# TODO: Consider building examples here.
-all: yarr2 yarrlib test
+all: yarr2 yarrlib test example
 
-clean: yarr2_clean yarrlib_clean test_clean
+clean: yarr2_clean yarrlib_clean test_clean example_clean
+
+.PHONY: test \
+    example
 
 yarr2:
 	make -C $(SRC_DIR)
@@ -20,14 +22,12 @@ yarrlib:
 yarrlib_clean:
 	make -C $(LIB_DIR) clean
 
-# TODO: Not working, why?
 test:
 	make -C $(TEST_DIR)
 
 test_clean:
 	make -C $(TEST_DIR) clean
 
-# TODO: Not working, why?
 example:
 	make -C $(EXAMPLE_DIR)
 
