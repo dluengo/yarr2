@@ -1,11 +1,11 @@
 INCLUDE_DIR := `pwd`/../include
-LIB_DIR := `pwd`/../lib/objs
+LIB_DIR := `pwd`/../lib/bin
 BIN_DIR := bin
 
 # GCC autocompletes to libyarr.so
 YARRLIB := yarr
 
-TESTS := syscall_setpgid
+TESTS := hidepid_test
 
 all: $(BIN_DIR) $(TESTS)
 
@@ -14,7 +14,7 @@ clean:
 
 # TODO: TESTS should contain names of targets we want to build. Make should
 # auto-generate the different targets with this form:
-syscall_setpgid: syscall_setpgid.c
+hidepid_test: hidepid_test.c
 	gcc -o $(BIN_DIR)/$@ -I$(INCLUDE_DIR) -L$(LIB_DIR) $< -l$(YARRLIB)
 
 $(BIN_DIR):

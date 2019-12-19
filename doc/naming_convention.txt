@@ -13,6 +13,10 @@ Function is internal just to the translation unit (i.e. the C file, although
 this is not fully correct). It should not be present in any header file. It
 should use exactly 2 underscores. It also should be static.
 
+Exception: If for some reason the function already has leading underscores
+don't use another pair to show it is internal. E.g. test functions in test/
+folder.
+
 --- Camel-case ---
 
 Example: funcName()
@@ -28,3 +32,4 @@ In general, if you are heavily using OOP paradigms, use this case.
 - Global variables should be avoided... but if you don't they should be global
   to the translation unit (i.e. the C file) and therefore use __ before their
   name.
+- Constants should be in caps.

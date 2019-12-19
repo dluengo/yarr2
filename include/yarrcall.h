@@ -26,6 +26,6 @@ asmlinkage long entry_yarrcall(struct pt_regs *regs);
  * @args: A pointer to the arguments of the service requested.
  * @return: Zero on success, non-zero elsewhere.
  */
-long yarrcall(int svc, YarrCallArgs_t __user *args);
+long do_yarrcall(int svc, YarrcallArgs_t __user *args);
 
 #endif
