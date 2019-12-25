@@ -193,7 +193,6 @@ int unpatch_all(void) {
         __write_with_perms(patch_entry->addr,
                 patch_entry->orig_content,
                 patch_entry->size);
-
     }
 
     return 0;

