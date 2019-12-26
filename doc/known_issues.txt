@@ -1,0 +1,17 @@
+--- Segfault after unload ---
+
+After unloading yarr2 from kernel we will get a segfault (kernel-side, oops).
+
+Why? When running rmmod the parent of it, typically a bash shell, spawns the
+new rmmod task and it (parent) goes to sleep waiting for its children to
+finish by calling wait4. Due to wait4 being hooked, at some point our hook
+calls the real syscall, and when the task wakes up will return. During this,
+rmmod task does its job, unloading yarr2, removing the wait4 hook, setting
+memory pages that belong to hook's code invalid. Later when the parent wakes up
+because rmmod has finished at some point it will try to return to the hook
+because that's what its stack-frame states and since those memory pages are not
+available anymore the segfault happens.
+
+In a system where there are processes that went to sleep when yarr2 was loaded
+and wake up after yarr2 was unloaded all of them will incur into a segfault.
+
