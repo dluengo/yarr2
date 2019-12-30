@@ -10,7 +10,6 @@
 #include "utils.h"
 #include "patch.h"
 #include "yarrcall.h"
-#include "hook_syscalls.h"
 
 // Our fake sys_call_table.
 static unsigned long __fake_sct[__NR_syscall_max+1];
