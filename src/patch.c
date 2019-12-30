@@ -9,9 +9,9 @@
 // patch, the amount of bytes we patch an the original content. This way we
 // can undo all the patches before unloading.
 typedef struct {
-    unsigned char *addr;
+    void *addr;
     size_t size;
-    unsigned char *orig_content;
+    void *orig_content;
 } __PatchEntry_t;
 
 // The list where we will keep track of all the patches we've done in the
@@ -30,7 +30,7 @@ static void __PatchEntry_print(__PatchEntry_t *this) {
             this->addr, this->size, this->orig_content);
     yarr_log_nonl("orig_content: [");
     for (i = 0; i < this->size; i++) {
-        yarr_raw_log("%02x, ", this->orig_content[i]);
+        yarr_raw_log("%02x, ", ((unsigned char *)this->orig_content)[i]);
     }
     yarr_raw_log(" ]\n");
 }
@@ -44,15 +44,24 @@ static void __PatchEntry_destroy(__PatchEntry_t *this) {
     return;
 }
 
+static inline int __patch_initialized(void) {
+    return __patch_list == NULL? 0: 0x01ec0ded;
+}
+
 static int __update_bookkeeping(
-        unsigned char *dst,
-        unsigned char *src,
+        void *dst,
+        void *src,
         size_t size) {
     __PatchEntry_t *patch_entry;
     int err;
 
     if (dst == NULL || src == NULL || size == 0) {
         yarr_log("dst/src are NULL or size is 0");
+        return -1;
+    }
+
+    if (!__patch_initialized()) {
+        yarr_log("Patch subsytem not initialized");
         return -1;
     }
 
@@ -76,20 +85,6 @@ static int __update_bookkeeping(
     // Copy the original content that we want to patch so we can restore it
     // in the future. Mind that the original content is still in dst, not src.
     memcpy(patch_entry->orig_content, dst, size);
-
-    // First time using the patch subsystem. Create the patch list.
-    if (__patch_list == NULL) {
-        __patch_list = List_create(
-                (void *)__PatchEntry_print,
-                NULL,
-                (void *)__PatchEntry_destroy);
-        if (__patch_list == NULL) {
-            yarr_log("Error while creating the list of patches");
-            kfree(patch_entry->orig_content);
-            kfree(patch_entry);
-            return -1;
-        }
-    }
 
     // Add the patch entry to the list.
     //
@@ -115,15 +110,17 @@ static void __write_with_perms(void *dst, void *src, size_t size) {
     // before.
     //
     // TODO: I think we should disable interrupts
+    // TODO: We should take some kind of lock, as other CPUs might be trying to
+    // read.
     cr0 = read_cr0();
     write_cr0(cr0 & ~__WP_BIT);
     memcpy(dst, src, size);
     write_cr0(cr0 | __WP_BIT);
 }
 
-int init_patch(void) {
+int patch_init(void) {
     // Subsystem was initialized before, end gracefully but raise a message.
-    if (__patch_list != NULL) {
+    if (__patch_initialized()) {
         yarr_log("Trying to initialize patch subsystem more than once");
         return 0;
     }
@@ -140,8 +137,8 @@ int init_patch(void) {
     return 0;
 }
 
-int stop_patch(void) {
-    if (__patch_list == NULL) {
+int patch_finish(void) {
+    if (!__patch_initialized()) {
         return 0;
     }
 
@@ -154,7 +151,7 @@ int stop_patch(void) {
     return 0;
 }
 
-int patch(unsigned char *dst, unsigned char *src, size_t size) {
+int patch(void *dst, void *src, size_t size) {
     int err;
 
     if (dst == NULL || src == NULL || size == 0) {
@@ -162,7 +159,11 @@ int patch(unsigned char *dst, unsigned char *src, size_t size) {
         return -1;
     }
 
-    // Update the bookkeeping.
+    if (!__patch_initialized()) {
+        yarr_log("Patch subsystem is not initialized");
+        return -1;
+    }
+
     err = __update_bookkeeping(dst, src, size);
     if (err) {
         yarr_log("Couldn't update the bookkeeping");
@@ -173,12 +174,43 @@ int patch(unsigned char *dst, unsigned char *src, size_t size) {
     return 0;
 }
 
+int unpatch(void *addr) {
+    __PatchEntry_t *patch_entry;
+    int i;
+
+    if (addr == NULL) {
+        yarr_log("Given address is NULL");
+        return -1;
+    }
+
+    if (!__patch_initialized()) {
+        yarr_log("Patch subsystem is not initialized");
+        return -1;
+    }
+
+    for (i = 0; i < List_length(__patch_list); i++) {
+        patch_entry = (__PatchEntry_t *)List_getData(__patch_list, i);
+        if (patch_entry == NULL) {
+            yarr_log("patch_entry is NULL, in theory this is not possible!");
+            continue;
+        }
+
+        if (patch_entry->addr == addr) {
+            __write_with_perms(patch_entry->addr,
+                    patch_entry->orig_content,
+                    patch_entry->size);
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 int unpatch_all(void) {
     __PatchEntry_t *patch_entry;
     unsigned int i;
 
-    // Nothing was patched.
-    if (__patch_list == NULL) {
+    if (!__patch_initialized()) {
         return 0;
     }
 
@@ -189,7 +221,6 @@ int unpatch_all(void) {
             continue;
         }
 
-        // Undo the patch.
         __write_with_perms(patch_entry->addr,
                 patch_entry->orig_content,
                 patch_entry->size);

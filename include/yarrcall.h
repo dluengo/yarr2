@@ -7,6 +7,20 @@
 #include "yarrlib.h"
 
 /**
+ * Initializes the yarrcall subsystem.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int yarrcall_init(void);
+
+/**
+ * Stops the yarrcall subsystem.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int yarrcall_finish(void);
+
+/**
  * Entry point of the yarr system call, a wrapper to properly read the
  * pt_regs structure that resides in the stack and then call yarrcall(), which
  * will handle the service requested.

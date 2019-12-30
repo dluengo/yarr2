@@ -40,6 +40,14 @@ int __get_proc_info(__GetProcInfoArgs_t *proc_info) {
     return 0;
 }
 
+int yarrcall_init(void) {
+    return 0;
+}
+
+int yarrcall_finish(void) {
+    return 0;
+}
+
 asmlinkage long entry_yarrcall(struct pt_regs *regs) {
     return do_yarrcall((int)(regs->di), (YarrcallArgs_t *)(regs->si));
 }

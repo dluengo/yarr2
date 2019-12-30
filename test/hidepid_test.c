@@ -89,7 +89,7 @@ int __yarr__x64_sys_setpgid_test(void) {
             test_log("Error expected but not found");
             exit(-1);
         } else if (errno != ESRCH) {
-            test_log("Error found is not ESRCH");
+            test_log("Error found but is not ESRCH");
             exit(-1);
         }
 

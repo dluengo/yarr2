@@ -1,22 +1,19 @@
 #ifndef __YARR_PATCH
 #define __YARR_PATCH
 
-#include <linux/types.h>
-
 /**
- * Initializes the patch subsystem. This function is a singleton.
+ * Initializes the patch subsystem.
  *
  * @return: Zero on success, non-zero elsewhere.
  */
-int init_patch(void);
+int patch_init(void);
 
 /**
- * Frees all the resources associated to the patch subsystem. This function is
- * a singleton.
+ * Frees all the resources associated to the patch subsystem.
  *
  * @return: Zero on success, non-zero elsewhere.
  */
-int stop_patch(void);
+int patch_finish(void);
 
 /**
  * Patches the kernel memory at dst with size bytes from src.
@@ -26,7 +23,15 @@ int stop_patch(void);
  * @size: The number of bytes to be read from src and written into dst.
  * @return: Zero on success, non-zero elsewhere.
  */
-int patch(unsigned char *dst, unsigned char *src, size_t size);
+int patch(void *dst, void *src, size_t size);
+
+/**
+ * Undoes a previously patch in a specific address.
+ *
+ * @addr: The address we want to unpatch.
+ * @return: Zero on success, non-zero elsewhere.
+ */
+int unpatch(void *addr);
 
 /**
  * Undoes all the patches previously done by calling patch().

