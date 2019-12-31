@@ -129,6 +129,7 @@ int patch_init(void) {
 
 int patch_finish(void) {
     unpatch_all();
+    __patch_list = RB_ROOT;
     return 0;
 }
 
@@ -197,24 +198,21 @@ int unpatch(void *addr) {
 
 int unpatch_all(void) {
     __PatchEntry_t *patch_entry;
-    struct rb_node *node;
+    struct rb_node *node, *next;
 
     node = rb_first(&__patch_list);
     while (node != NULL) {
         patch_entry = rb_entry(node, __PatchEntry_t, node);
-        if (patch_entry == NULL) {
-            yarr_log("rb_node not NULL and entry NULL, not possible!!!");
-            return -1;
-        }
 
-        rb_erase(node, &__patch_list);
+        next = rb_next(node);
+        rb_erase(&patch_entry->node, &__patch_list);
 
         __write_with_perms(patch_entry->addr,
                 patch_entry->orig_content,
                 patch_entry->size);
 
-        node = rb_next(node);
         __PatchEntry_free(patch_entry);
+        node = next;
     }
 
     return 0;

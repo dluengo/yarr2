@@ -46,4 +46,9 @@ int hide_pid(pid_t pid);
  */
 int unhide_pid(pid_t pid);
 
+/**
+ * Stops hidding all previous hidden pids.
+ */
+void unhide_pid_all(void);
+
 #endif

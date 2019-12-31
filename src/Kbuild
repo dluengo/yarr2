@@ -1,6 +1,5 @@
 obj-m := yarr2.o
 yarr2-objs := \
-    list.o \
     utils.o \
     patch.o \
     hidepid.o \
