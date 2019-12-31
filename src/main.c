@@ -29,8 +29,6 @@ static int __init yarr2_init(void) {
         return -1;
     }
 
-    // For now this subsystem has to be initialized here as other subsystems
-    // depends on it.
     yarr_log("Initializing hook subsystem...");
     err = hook_init();
     if (err) {
