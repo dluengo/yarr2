@@ -20,7 +20,8 @@ void * thread_main(void *args) {
     pgid = getpgid(pid);
     tid = gettid();
 
-    yarrcall(__GET_PROC_INFO, &proc_info);
+    proc_info.svc = __GET_PROC_INFO;
+    yarrcall(&proc_info, sizeof(proc_info));
 
     printf("PID  is          0x%016x\n", pid);
     printf("PGID is          0x%016x\n", pgid);
@@ -44,7 +45,9 @@ int main() {
     pid = getpid();
     pgid = getpgid(pid);
     tid = gettid();
-    yarrcall(__GET_PROC_INFO, &args);
+
+    args.svc = __GET_PROC_INFO;
+    yarrcall(&args, sizeof(args));
 
     printf("PID  is          0x%016x\n", pid);
     printf("PGID is          0x%016x\n", pgid);

@@ -14,8 +14,9 @@ int main() {
     printf("My pid is %d\n", my_pid);
     printf("Try with kill -TERM %d\n", my_pid);
 
+    args.svc = HIDE_PID;
     args.hidepid_args.pid = my_pid;
-    err = yarrcall(HIDE_PID, &args);
+    err = yarrcall(&args, sizeof(args));
     if (err) {
         printf("Errors hiding\n");
         return -1;
@@ -23,7 +24,8 @@ int main() {
 
     sleep(15);
 
-    err = yarrcall(UNHIDE_PID, &args);
+    args.svc = UNHIDE_PID;
+    err = yarrcall(&args, sizeof(args));
     if (err) {
         printf("Errors stop hiding\n");
     }

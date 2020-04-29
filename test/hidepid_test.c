@@ -105,7 +105,8 @@ int __yarr__x64_sys_setpgid_test(void) {
 
 stop_p1:
     yarr_args.hidepid_args.pid = getpid();
-    err = yarrcall(UNHIDE_PID, &yarr_args);
+    yarr_args.svc = UNHIDE_PID;
+    err = yarrcall(&yarr_args, sizeof(yarr_args));
     if (err) {
         test_log("Error unhiding pid %d", pid);
         return 0;

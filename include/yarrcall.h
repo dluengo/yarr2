@@ -36,10 +36,10 @@ asmlinkage long entry_yarrcall(struct pt_regs *regs);
  * This is that entry point. This function is installed in some entry in the
  * syscall table and user-land programs.
  *
- * @svc: The index of the service to request.
  * @args: A pointer to the arguments of the service requested.
+ * @args_size: The size of the args argument.
  * @return: Zero on success, non-zero elsewhere.
  */
-long do_yarrcall(int svc, YarrcallArgs_t __user *args);
+long do_yarrcall(YarrcallArgs_t __user *args, size_t args_size);
 
 #endif

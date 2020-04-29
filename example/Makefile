@@ -5,9 +5,12 @@ BIN_DIR := bin
 # GCC auto-completes with libyarr.so
 YARRLIB := yarr
 
+# TODO: Generate targets automatically based on the names of the programs.
 all: $(BIN_DIR) \
     hide_self \
-    threads_id
+    threads_id \
+    hide_file \
+    print_stacks
 
 clean:
 	rm -rf $(BIN_DIR)
@@ -22,6 +25,18 @@ threads_id: threads_id.c
 	gcc -pthread -o $(BIN_DIR)/$@ -I$(YARR_INCLUDES) -L$(LIB_DIR) $< -l$(YARRLIB)
 
 threads_id_clean: threads_id
+	rm -f $(BIN_DIR)/$<
+
+hide_file: hide_file.c
+	gcc -o $(BIN_DIR)/$@ -I$(YARR_INCLUDES) -L$(LIB_DIR) $< -l$(YARRLIB)
+
+hide_file_clen: hide_file
+	rm -f $(BIN_DIR)/$<
+
+print_stacks: print_stacks.c
+	gcc -o $(BIN_DIR)/$@ -I$(YARR_INCLUDES) -L$(LIB_DIR) $< -l$(YARRLIB)
+
+print_stacks_clean: print_stacks
 	rm -f $(BIN_DIR)/$<
 
 $(BIN_DIR):
